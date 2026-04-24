@@ -1,0 +1,20 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Animação de pulso sutil para elementos de fundo */
+@keyframes pulse-slow {
+  50% {
+    opacity: .75;
+    transform: scale(1.1) rotate(10deg);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

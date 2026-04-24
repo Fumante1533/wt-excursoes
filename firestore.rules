@@ -1,0 +1,119 @@
+rules_version = '2';
+
+// Segurança: revise com o time após mudanças no modelo de dados.
+// Deploy: firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.get('admin', false) == true ||
+        request.auth.token.email == 'itacars237@admin.com' ||
+        request.auth.uid == 'EhJOQzxkHOUjRTbmdNDDIqe7XEy2'
+      );
+    }
+
+    // --- Catálogo e conteúdo público (escrita só admin) ---
+    match /excursions/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /faqs/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /blogPosts/{postId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+      );
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+        allow update: if signedIn() && (
+          resource.data.userId == request.auth.uid ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+        );
+        allow delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+
+        match /replies/{replyId} {
+          allow read: if true;
+          allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+          allow update: if signedIn() && (
+            resource.data.userId == request.auth.uid ||
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
+          );
+          allow delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+        }
+      }
+    }
+
+    match /coupons/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /reviews/{id} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Perfil: leitura pública usada pelo perfil / comentários (evite colocar dados sensíveis no doc raiz).
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+
+      match /orders/{orderId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if false;
+      }
+
+      match /wishlist/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /cars/{carId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /tap_receipts/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /userComments/{userId}/comments/{commentId} {
+      allow read: if true;
+      allow write: if isOwner(userId);
+    }
+
+    match /newsletterSubscribers/{emailId} {
+      allow create: if request.resource.data.email == emailId;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Resultados Tap legados / admin-only; cliente não deve gravar aqui.
+    match /tap_results/{id} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
