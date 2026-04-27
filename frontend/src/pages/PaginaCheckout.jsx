@@ -317,7 +317,7 @@ export default function PaginaCheckout({ cart, user }) {
             </Button>
           ) : (
             <div className="mt-8">
-              <Wallet initialization={{ preferenceId }} customization={{ texts: { valueProp: "smart_option" } }} />
+              <Wallet initialization={{ preferenceId }} />
             </div>
           )}
         </Card>
