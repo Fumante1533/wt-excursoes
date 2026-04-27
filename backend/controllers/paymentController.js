@@ -115,12 +115,13 @@ exports.createPreference = async (req, res) => {
 
 exports.receiveWebhook = async (req, res) => {
   // IMPORTANTE: Mercado Pago exige resposta 200 imediata.
-  // Processamos de forma assíncrona e sempre devolvemos 200.
+  // Suporta: Webhooks (POST JSON) e IPN legado (topic=payment querystring)
   res.status(200).send('Webhook recebido.');
 
   try {
+    // IPN: ?topic=payment&id=123  |  Webhooks: body.type = "payment", body.data.id
     const paymentId = req.query['data.id'] || req.query.id || (req.body && req.body.data && req.body.data.id);
-    const type = req.query.type || (req.body && req.body.type);
+    const type = req.query.type || req.query.topic || (req.body && req.body.type);
 
     if (type !== 'payment' || !paymentId) return;
     if (!client) {

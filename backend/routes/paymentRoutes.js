@@ -28,6 +28,7 @@ router.post('/create-preference', verifyFirebaseToken, createHandler);
 
 if (paymentProvider !== 'stripe') {
   router.post('/webhook', express.json({ limit: '256kb' }), webhookHandler);
+  router.get('/webhook', webhookHandler); // IPN legado usa GET
 }
 
 router.post('/confirm', verifyFirebaseToken, confirmHandler);
