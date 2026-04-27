@@ -130,7 +130,7 @@ export default function PaginaCheckout({ cart, user }) {
     setError("");
 
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+      const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
       const firstItem = cart[0];
       // Usa auth.currentUser para garantir acesso ao método getIdToken() do SDK Firebase
       // (o prop `user` pode ser um plain object sem os métodos do SDK)
