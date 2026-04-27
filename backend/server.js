@@ -11,6 +11,10 @@ const userRoutes = require('./routes/user');
 
 const app = express();
 
+// Necessário quando atrás de proxy (Cloudflare/Nginx)
+// Sem isso, express-rate-limit lança ValidationError e retorna 400
+app.set('trust proxy', 1);
+
 const allowedOrigins = [
   'https://itajobicarsclub.com.br',
   'https://www.itajobicarsclub.com.br',
