@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { XCircle } from "lucide-react";
 import { signOut, onAuthStateChanged, getIdTokenResult } from "firebase/auth";
 import { 
@@ -540,9 +540,6 @@ const deleteExcursion = async (id) => {
         );
       }
       case "checkout": {
-        if (!user) {
-          return <PaginaAutenticacao onLoginSuccess={handleLoginSuccess} />;
-        }
         const cartItems = pageData.cart || [];
         return cartItems.length > 0 ? (
           <PaginaCheckout cart={cartItems} user={user} />

@@ -24,7 +24,8 @@ if (paymentProvider === 'infinity') {
   };
 }
 
-router.post('/create-preference', verifyFirebaseToken, createHandler);
+const optionalAuth = require('../middleware/optionalAuth');
+router.post('/create-preference', optionalAuth, createHandler);
 
 if (paymentProvider !== 'stripe') {
   router.post('/webhook', express.json({ limit: '256kb' }), webhookHandler);

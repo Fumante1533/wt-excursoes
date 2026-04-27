@@ -13,15 +13,16 @@ exports.createPreference = async (req, res) => {
       return res.status(503).json({ error: 'Pagamento não configurado no servidor.' });
     }
 
-    const { excursion, ticket, buyerInfo, carInfo } = req.body || {};
-    const uid = req.user.uid;
-    const tokenEmail = (req.user.email || '').trim().toLowerCase();
+    const { excursion, ticket, buyerInfo, carInfo, additionalPassengers } = req.body || {};
+    const isGuest = !req.user;
+    const uid = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` : req.user.uid;
+    const tokenEmail = isGuest ? '' : (req.user.email || '').trim().toLowerCase();
 
     if (!excursion || !ticket) {
       return res.status(400).json({ error: 'Dados da excursão ou ingresso ausentes.' });
     }
 
-    if (tokenEmail && buyerInfo && buyerInfo.email) {
+    if (!isGuest && tokenEmail && buyerInfo && buyerInfo.email) {
       const formEmail = String(buyerInfo.email).trim().toLowerCase();
       if (formEmail !== tokenEmail) {
         return res.status(400).json({ error: 'O e-mail do formulário deve ser o mesmo da conta logada.' });
@@ -39,25 +40,24 @@ exports.createPreference = async (req, res) => {
 
     // Verificar disponibilidade do lote
     const qty = Number(realTicket.quantity || 0);
+    // Calcular quantos ingressos no total
+    const totalQtyDemanded = 1 + (Array.isArray(additionalPassengers) ? additionalPassengers.length : 0);
     if (qty > 0) {
       const soldCounts = excursionData.ticketSoldCounts || {};
       const sold = Number(soldCounts[String(realTicketIndex)] || 0);
-      if (sold >= qty) {
-        return res.status(400).json({ error: `Inscrição "${ticket.type}" esgotada. Aguarde o próximo lote.` });
+      if (sold + totalQtyDemanded > qty) {
+        return res.status(400).json({ error: `Vagas insuficientes no lote "${ticket.type}". Restam ${Math.max(0, qty - sold)}.` });
       }
     }
 
     const realPrice = realTicket.price;
 
-    const payerEmail =
-      tokenEmail || (buyerInfo && String(buyerInfo.email).trim()) || '';
+    const payerEmail = tokenEmail || (buyerInfo && String(buyerInfo.email).trim()) || '';
     if (!payerEmail) {
       return res.status(400).json({ error: 'E-mail do pagador é obrigatório.' });
     }
 
     if (Number(realPrice) <= 0) {
-      // Ingresso gratuito: para simplificar, apenas retornamos erro solicitando registro direto ou contate admin.
-      // Futuro: implementação de checkout gratuito direto sem o MP.
       return res.status(400).json({ error: 'Ingressos gratuitos ou isentos não podem ser processados via Mercado Pago. O valor deve ser maior que zero.' });
     }
 
@@ -70,13 +70,13 @@ exports.createPreference = async (req, res) => {
           title: `${excursionData.name} (${ticket.type})`,
           description: excursionData.location || "Evento",
           picture_url: excursionData.image || undefined,
-          quantity: 1,
+          quantity: totalQtyDemanded,
           currency_id: 'BRL',
           unit_price: Number(realPrice),
         },
       ],
       payer: {
-        name: (buyerInfo && buyerInfo.fullName) || req.user.name || 'Comprador',
+        name: (buyerInfo && buyerInfo.fullName) || (req.user && req.user.name) || 'Comprador',
         email: payerEmail,
       },
       back_urls: {
@@ -87,9 +87,11 @@ exports.createPreference = async (req, res) => {
       auto_return: 'approved',
       metadata: {
         user_id: uid,
+        is_guest: String(isGuest),
         excursion_id: String(excursion.id),
         ticket_type: ticket.type,
         car_info: JSON.stringify(carInfo || {}),
+        additional_passengers: additionalPassengers ? JSON.stringify(additionalPassengers).substring(0, 450) : "[]",
       },
     };
 
@@ -145,11 +147,13 @@ exports.receiveWebhook = async (req, res) => {
       const excursionId = metadata && metadata.excursion_id;
       const ticketType = metadata && metadata.ticket_type;
       let carInfo = {};
+      let additionalPassengers = [];
       try {
         carInfo = JSON.parse((metadata && metadata.car_info) || '{}');
-      } catch (_) {
-        carInfo = {};
-      }
+      } catch (_) { carInfo = {}; }
+      try {
+        additionalPassengers = JSON.parse((metadata && metadata.additional_passengers) || '[]');
+      } catch (_) { additionalPassengers = []; }
 
       if (!userId) {
         console.error('Webhook MP: user_id ausente no metadata');
@@ -161,10 +165,15 @@ exports.receiveWebhook = async (req, res) => {
       const existing = await orderRef.get();
       if (existing.exists) return; // já processado (idempotência)
 
-      const ticketCode = generateTicketCode();
-      await orderRef.set({
+      // Salva o ingresso principal
+      const ticketCodeMain = generateTicketCode();
+      const excursionNameStr = orderData.additional_info?.items?.[0]?.title?.split(' (')[0] || '';
+      
+      const batch = db.batch();
+      
+      batch.set(orderRef, {
         excursionId: excursionId,
-        excursionName: orderData.additional_info?.items?.[0]?.title?.split(' (')[0] || '',
+        excursionName: excursionNameStr,
         ticketType: ticketType,
         price: Number(orderData.transaction_amount || 0),
         status: 'Pago',
@@ -174,24 +183,63 @@ exports.receiveWebhook = async (req, res) => {
         paymentId: orderData.id,
         carInfo,
         ticket: {
-          code: ticketCode,
+          code: ticketCodeMain,
           validated: false,
           validatedAt: null,
           validatedBy: null,
         },
       });
 
+      // Salva os ingressos adicionais, se houver
+      if (Array.isArray(additionalPassengers)) {
+        additionalPassengers.forEach((passenger, idx) => {
+          const extraCode = generateTicketCode();
+          const extraRef = db.collection('users').doc(userId).collection('orders').doc(`${orderData.id}_${idx + 1}`);
+          batch.set(extraRef, {
+            excursionId: excursionId,
+            excursionName: excursionNameStr,
+            ticketType: ticketType,
+            price: 0, // o total já foi pago no principal
+            status: 'Pago',
+            purchaseDate: new Date().toISOString(),
+            buyerName: passenger.fullName || 'Acompanhante',
+            buyerEmail: passenger.email || '',
+            paymentId: orderData.id,
+            carInfo: {
+              plate: passenger.carPlate || '',
+              model: passenger.carModel || '',
+              year: passenger.carYear || '',
+              color: passenger.carColor || ''
+            },
+            ticket: {
+              code: extraCode,
+              validated: false,
+              validatedAt: null,
+              validatedBy: null,
+            },
+          });
+        });
+      }
+
+      await batch.commit();
+
           if (excursionId) {
             const excursionRef = db.collection('excursions').doc(String(excursionId));
             const excursionSnap = await excursionRef.get();
-            const updateData = { bookedSlots: admin.firestore.FieldValue.increment(1) };
+            const totalTicketsBought = 1 + additionalPassengers.length;
+            const updateData = { bookedSlots: admin.firestore.FieldValue.increment(totalTicketsBought) };
 
             // Incrementar contagem do lote vendido
             if (excursionSnap.exists && ticketType) {
               const excursionData = excursionSnap.data();
               const ticketIndex = (excursionData.tickets || []).findIndex((t) => t.type === ticketType);
               if (ticketIndex >= 0) {
-                updateData[`ticketSoldCounts.${ticketIndex}`] = admin.firestore.FieldValue.increment(1);
+                const currentSoldCount = (excursionData.ticketSoldCounts || {})[String(ticketIndex)] || 0;
+                const newSoldCounts = {
+                  ...(excursionData.ticketSoldCounts || {}),
+                  [String(ticketIndex)]: Number(currentSoldCount) + totalTicketsBought,
+                };
+                updateData.ticketSoldCounts = newSoldCounts;
               }
             }
 

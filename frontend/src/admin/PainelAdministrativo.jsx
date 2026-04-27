@@ -12,6 +12,7 @@ import {
   UserCircle2,
   Tag,
   FileText,
+  Menu,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { collection, getDocs } from "firebase/firestore";
@@ -125,89 +126,24 @@ function ValidadorIngressos({ excursions }) {
   const [result, setResult] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState("");
-  const [videoDeviceId, setVideoDeviceId] = useState("");
-  const [devices, setDevices] = useState([]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const list = await BrowserMultiFormatReader.listVideoInputDevices();
-        setDevices(list || []);
-        if (list && list.length > 0 && !videoDeviceId) {
-          setVideoDeviceId(list[0].deviceId);
-        }
-      } catch (e) {
-        console.debug("Scanner: não foi possível listar câmeras:", e?.message || e);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!isScanning) return;
-    setScanError("");
-
-    const reader = new BrowserMultiFormatReader();
-    let stopped = false;
-
-    (async () => {
-      try {
-        await reader.decodeFromVideoDevice(videoDeviceId || undefined, "ticket-video", (result) => {
-          if (stopped) return;
-          if (result) {
-            const text = String(result.getText() || "").trim();
-            if (text) {
-              setTicketCode(text.toUpperCase());
-              setIsScanning(false);
-            }
-          }
-        });
-      } catch (e) {
-        if (!stopped) setScanError("Não foi possível acessar a câmera. Verifique permissões.");
-        setIsScanning(false);
-        console.debug("Scanner: erro ao iniciar câmera:", e?.message || e);
-      }
-    })();
-
-    return () => {
-      stopped = true;
-      try {
-        reader.reset();
-      } catch (e) {
-        console.debug("Scanner: reset falhou:", e?.message || e);
-      }
-    };
-  }, [isScanning, videoDeviceId]);
-
-  const handleValidate = async () => {
-    if (!ticketCode.trim()) {
-      toast.error("Informe o código do ingresso.");
-      return;
-    }
+  const doValidate = async (codeParam) => {
+    const code = String(codeParam !== undefined ? codeParam : ticketCode).trim().toUpperCase();
+    if (!code) { toast.error("Informe o código do ingresso."); return; }
     setIsValidating(true);
     setResult(null);
     try {
       const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
       const user = auth?.currentUser;
-      if (!user) {
-        toast.error("Admin não autenticado.");
-        return;
-      }
+      if (!user) { toast.error("Admin não autenticado."); setIsValidating(false); return; }
       const token = await user.getIdToken();
       const response = await fetch(`${backendUrl}/api/payment/validate-ticket`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ticketCode,
-          ...(excursionId ? { excursionId } : {}),
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ticketCode: code, ...(excursionId ? { excursionId } : {}) }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.error || "Falha ao validar ingresso.");
-      }
+      if (!response.ok) throw new Error(data.error || "Falha ao validar ingresso.");
       setResult(data);
       toast.success("Ingresso validado com sucesso!");
     } catch (err) {
@@ -217,41 +153,62 @@ function ValidadorIngressos({ excursions }) {
     }
   };
 
+  useEffect(() => {
+    if (!isScanning) return;
+    setScanError("");
+    const reader = new BrowserMultiFormatReader();
+    let stopped = false;
+    (async () => {
+      try {
+        // facingMode: environment = câmera traseira
+        await reader.decodeFromConstraints(
+          { video: { facingMode: { ideal: "environment" } } },
+          "ticket-video",
+          (scanResult) => {
+            if (stopped || !scanResult) return;
+            const text = String(scanResult.getText() || "").trim().toUpperCase();
+            if (text) {
+              stopped = true;
+              setIsScanning(false);
+              setTicketCode(text);
+              doValidate(text); // auto-valida imediatamente
+            }
+          }
+        );
+      } catch (e) {
+        if (!stopped) setScanError("Não foi possível acessar a câmera. Verifique permissões.");
+        setIsScanning(false);
+      }
+    })();
+    return () => {
+      stopped = true;
+      try { reader.reset(); } catch (_) {}
+    };
+  }, [isScanning]);
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-3xl">
       <h2 className="text-3xl font-bold text-white mb-6">Validação de Ingressos</h2>
       <div className="bg-zinc-800 rounded-lg p-6 space-y-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row gap-2 items-stretch">
-            <Button variant="secondary" onClick={() => setIsScanning((v) => !v)}>
-              {isScanning ? "Parar leitura" : "Ler QR Code (câmera)"}
-            </Button>
-            {devices.length > 1 && (
-              <select
-                value={videoDeviceId}
-                onChange={(e) => setVideoDeviceId(e.target.value)}
-                className="flex-1 bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600"
-              >
-                {devices.map((d) => (
-                  <option key={d.deviceId} value={d.deviceId}>
-                    {d.label || `Câmera ${d.deviceId.slice(0, 6)}...`}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          {isScanning && (
-            <div className="rounded-lg overflow-hidden border border-zinc-700 bg-black">
-              <video id="ticket-video" className="w-full h-[320px] object-cover" />
+        <Button variant="secondary" className="w-full" onClick={() => setIsScanning((v) => !v)}>
+          {isScanning ? "⏹ Parar leitura" : "📷 Escanear QR Code"}
+        </Button>
+        {isScanning && (
+          <div className="rounded-lg overflow-hidden border-2 border-yellow-500 bg-black relative">
+            <video id="ticket-video" className="w-full h-[300px] object-cover" />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-48 h-48 border-4 border-yellow-400 rounded-lg opacity-60" />
             </div>
-          )}
-          {scanError && <p className="text-red-300 text-sm">{scanError}</p>}
-        </div>
+            <p className="text-center text-yellow-400 text-sm py-2">Aponte para o QR Code do ingresso</p>
+          </div>
+        )}
+        {scanError && <p className="text-red-300 text-sm">{scanError}</p>}
+        <div className="text-zinc-400 text-xs text-center">— ou informe o código manualmente —</div>
         <input
           value={ticketCode}
           onChange={(e) => setTicketCode(e.target.value.toUpperCase())}
           placeholder="Código do ingresso (ex: ITC-...)"
-          className="w-full bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600"
+          className="w-full bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600 font-mono"
         />
         <select
           value={excursionId}
@@ -260,20 +217,18 @@ function ValidadorIngressos({ excursions }) {
         >
           <option value="">Validar em qualquer evento</option>
           {excursions.map((ex) => (
-            <option key={ex.id} value={String(ex.id)}>
-              {ex.name}
-            </option>
+            <option key={ex.id} value={String(ex.id)}>{ex.name}</option>
           ))}
         </select>
-        <Button onClick={handleValidate} disabled={isValidating}>
-          {isValidating ? "Validando..." : "Validar ingresso"}
+        <Button onClick={() => doValidate()} disabled={isValidating} className="w-full">
+          {isValidating ? "Validando..." : "✅ Validar ingresso"}
         </Button>
         {result && (
-          <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
-            <p className="text-green-300 font-semibold">Ingresso válido</p>
-            <p className="text-zinc-200">Participante: {result.buyerName || "-"}</p>
-            <p className="text-zinc-200">Evento: {result.excursionName || "-"}</p>
-            <p className="text-zinc-300 text-sm">Código: {result.ticketCode}</p>
+          <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-center">
+            <p className="text-green-400 font-bold text-xl mb-2">✅ Ingresso Válido!</p>
+            <p className="text-white font-semibold">{result.buyerName || "—"}</p>
+            <p className="text-zinc-300">{result.excursionName || "—"}</p>
+            <p className="text-zinc-400 text-xs mt-2 font-mono">{result.ticketCode}</p>
           </div>
         )}
       </div>
@@ -290,6 +245,7 @@ export default function PainelAdministrativo({
   onLogout,
 }) {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingExcursion, setEditingExcursion] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [excursionToDelete, setExcursionToDelete] = useState(null);
@@ -422,54 +378,72 @@ export default function PainelAdministrativo({
     }
   };
 
+  const navItems = [
+    { id: "dashboard", label: "Dashboard", icon: BarChart2 },
+    { id: "excursions", label: "Eventos", icon: Package },
+    { id: "addExcursion", label: "Adicionar", icon: Plus },
+    { id: "orders", label: "Compradores", icon: Users },
+    { id: "ticketValidation", label: "Validar Ingressos", icon: Tag },
+    { id: "users", label: "Usuários", icon: UserCircle2 },
+    { id: "coupons", label: "Cupons", icon: Tag },
+    { id: "blog", label: "Blog", icon: FileText },
+  ];
+
+  const SidebarContent = () => (
+    <>
+      <div className="flex items-center justify-between mb-8 cursor-pointer" onClick={() => onNavigate("home")}>
+        <img src="/assets/itajobicars_logo.png" alt="Logo" className="h-16 w-auto invert brightness-0" />
+        <button className="md:hidden text-zinc-400" onClick={() => setSidebarOpen(false)}><X size={20} /></button>
+      </div>
+      <nav className="flex-grow">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => { setActiveTab(item.id); setEditingExcursion(null); setSidebarOpen(false); }}
+            className={`w-full text-left flex items-center p-3 rounded-lg mb-2 transition-colors ${
+              activeTab === item.id ? "bg-violet-600 text-white" : "text-zinc-300 hover:bg-zinc-800"
+            }`}
+          >
+            <item.icon className="mr-3" size={20} /> {item.label}
+          </button>
+        ))}
+      </nav>
+      <div className="mt-auto pt-4 border-t border-zinc-800">
+        <Button onClick={() => onNavigate("home")} variant="secondary" className="w-full mb-2">Ver Site</Button>
+        <button onClick={onLogout} className="w-full text-left flex items-center p-3 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors">
+          <LogOut className="mr-3" /> Sair
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-zinc-900 text-white flex">
+      {/* Overlay mobile */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+      {/* Sidebar desktop */}
       <aside className="w-64 bg-zinc-950 p-4 flex-col hidden md:flex">
-        <div className="flex items-center mb-8 cursor-pointer" onClick={() => onNavigate("home")}>
-          <img
-            src="/assets/itajobicars_logo.png"
-            alt="Itajobi Cars Club Logo"
-            className="h-20 w-auto invert brightness-0"
-          />
-        </div>
-        <nav className="flex-grow">
-          {[
-            { id: "dashboard", label: "Dashboard", icon: BarChart2 },
-            { id: "excursions", label: "Eventos", icon: Package },
-            { id: "addExcursion", label: "Adicionar", icon: Plus },
-            { id: "orders", label: "Compradores", icon: Users },
-            { id: "ticketValidation", label: "Validar Ingressos", icon: Tag },
-            { id: "users", label: "Usuários", icon: UserCircle2 },
-            { id: "coupons", label: "Cupons", icon: Tag },
-            { id: "blog", label: "Blog", icon: FileText },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setActiveTab(item.id);
-                setEditingExcursion(null);
-              }}
-              className={`w-full text-left flex items-center p-3 rounded-lg mb-2 transition-colors ${
-                activeTab === item.id ? "bg-violet-600 text-white" : "text-zinc-300 hover:bg-zinc-800"
-              }`}
-            >
-              <item.icon className="mr-3" size={20} /> {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="mt-auto pt-4 border-t border-zinc-800">
-          <Button onClick={() => onNavigate("home")} variant="secondary" className="w-full mb-2">
-            Ver Site
-          </Button>
-          <button
-            onClick={onLogout}
-            className="w-full text-left flex items-center p-3 rounded-lg text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
-          >
-            <LogOut className="mr-3" /> Sair
-          </button>
-        </div>
+        <SidebarContent />
       </aside>
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto bg-zinc-900">{renderContent()}</main>
+      {/* Sidebar mobile (drawer) */}
+      <aside className={`fixed top-0 left-0 h-full w-64 bg-zinc-950 p-4 flex flex-col z-30 transform transition-transform duration-300 md:hidden ${
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
+        <SidebarContent />
+      </aside>
+      {/* Conteúdo principal */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header mobile */}
+        <div className="md:hidden flex items-center gap-3 bg-zinc-950 px-4 py-3 border-b border-zinc-800">
+          <button onClick={() => setSidebarOpen(true)} className="text-zinc-300 hover:text-white">
+            <Menu size={24} />
+          </button>
+          <span className="font-bold text-white">Painel Admin</span>
+        </div>
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto bg-zinc-900">{renderContent()}</main>
+      </div>
       <CaixaDialogo isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirmar Exclusão">
         <p className="text-zinc-300 mb-6">
           Você tem certeza que deseja excluir o evento "{excursionToDelete?.name}"? Esta ação não pode ser desfeita.

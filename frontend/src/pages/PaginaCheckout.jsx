@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Users } from "lucide-react";
 import { Wallet } from "@mercadopago/sdk-react";
 import { db, auth } from "../firebaseConfig";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
@@ -27,6 +27,21 @@ export default function PaginaCheckout({ cart, user }) {
   const [preferenceId, setPreferenceId] = useState(null);
 
   const totalTickets = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const additionalCount = Math.max(0, totalTickets - 1);
+  
+  const [additionalPassengers, setAdditionalPassengers] = useState(
+    Array.from({ length: additionalCount }, () => ({
+      fullName: "",
+      cpf: "",
+      email: "",
+      phone: "",
+      carPlate: "",
+      carModel: "",
+      carYear: "",
+      carColor: "",
+    }))
+  );
+
   const serviceFee = 0;
   const totalPrice = finalPrice + serviceFee;
 
@@ -160,6 +175,10 @@ export default function PaginaCheckout({ cart, user }) {
             year: buyerInfo.carYear,
             color: buyerInfo.carColor,
           },
+          additionalPassengers: additionalPassengers.map(p => ({
+            ...p,
+            carPlate: formatCarPlate(p.carPlate)
+          })),
         }),
       });
 
@@ -200,14 +219,85 @@ export default function PaginaCheckout({ cart, user }) {
           </div>
 
           {totalTickets > 1 && (
-            <div className="bg-amber-100/50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 rounded-r-lg mb-8 text-amber-800 dark:text-amber-300">
-              <h3 className="font-bold flex items-center gap-2">
-                <MessageSquare size={18} /> Atenção: Passageiros Adicionais
+            <div className="mb-8 space-y-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Users size={24} /> Passageiros Adicionais
               </h3>
-              <p className="text-sm mt-1">
-                Após a confirmação do pagamento, por favor, envie o <strong>Nome Completo</strong> e <strong>CPF</strong> dos
-                outros {totalTickets - 1} passageiro(s) para o nosso WhatsApp.
-              </p>
+              {additionalPassengers.map((passenger, idx) => (
+                <div key={idx} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                  <h4 className="font-semibold mb-3">Acompanhante / Veículo {idx + 2}</h4>
+                  <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                    <Input
+                      placeholder="Nome Completo"
+                      value={passenger.fullName}
+                      onChange={(e) => {
+                        const newPass = [...additionalPassengers];
+                        newPass[idx].fullName = e.target.value;
+                        setAdditionalPassengers(newPass);
+                      }}
+                      required
+                    />
+                    <Input
+                      placeholder="CPF"
+                      value={passenger.cpf}
+                      maxLength="14"
+                      onChange={(e) => {
+                        const newPass = [...additionalPassengers];
+                        let val = e.target.value.replace(/\D/g, "");
+                        val = val.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+                        newPass[idx].cpf = val;
+                        setAdditionalPassengers(newPass);
+                      }}
+                      required
+                    />
+                  </div>
+                  <h5 className="text-sm font-semibold mb-2 text-zinc-500">Dados do Carro (Acompanhante {idx + 2})</h5>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <Input
+                      placeholder="Placa"
+                      value={passenger.carPlate}
+                      maxLength="7"
+                      onChange={(e) => {
+                        const newPass = [...additionalPassengers];
+                        newPass[idx].carPlate = formatCarPlate(e.target.value);
+                        setAdditionalPassengers(newPass);
+                      }}
+                      required
+                    />
+                    <Input
+                      placeholder="Modelo"
+                      value={passenger.carModel}
+                      onChange={(e) => {
+                        const newPass = [...additionalPassengers];
+                        newPass[idx].carModel = e.target.value;
+                        setAdditionalPassengers(newPass);
+                      }}
+                      required
+                    />
+                    <Input
+                      placeholder="Ano"
+                      type="number"
+                      value={passenger.carYear}
+                      onChange={(e) => {
+                        const newPass = [...additionalPassengers];
+                        newPass[idx].carYear = e.target.value;
+                        setAdditionalPassengers(newPass);
+                      }}
+                      required
+                    />
+                    <Input
+                      placeholder="Cor"
+                      value={passenger.carColor}
+                      onChange={(e) => {
+                        const newPass = [...additionalPassengers];
+                        newPass[idx].carColor = e.target.value;
+                        setAdditionalPassengers(newPass);
+                      }}
+                      required
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
