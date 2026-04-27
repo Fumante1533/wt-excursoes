@@ -114,59 +114,71 @@ exports.createPreference = async (req, res) => {
 };
 
 exports.receiveWebhook = async (req, res) => {
+  // IMPORTANTE: Mercado Pago exige resposta 200 imediata.
+  // Processamos de forma assíncrona e sempre devolvemos 200.
+  res.status(200).send('Webhook recebido.');
+
   try {
     const paymentId = req.query['data.id'] || req.query.id || (req.body && req.body.data && req.body.data.id);
     const type = req.query.type || (req.body && req.body.type);
 
-    if (type === 'payment' && paymentId) {
-      if (!client) {
-        return res.status(503).send('Configuração ausente');
+    if (type !== 'payment' || !paymentId) return;
+    if (!client) {
+      console.warn('Webhook MP: client não configurado.');
+      return;
+    }
+
+    let orderData;
+    try {
+      const payment = new Payment(client);
+      orderData = await payment.get({ id: paymentId });
+    } catch (mpErr) {
+      // ID fictício (ex: teste do painel MP) ou pagamento não encontrado
+      console.warn(`Webhook MP: pagamento ${paymentId} não encontrado ou erro na API:`, mpErr.message || mpErr);
+      return;
+    }
+
+    if (orderData && (orderData.status === 'approved' || orderData.status === 'paid')) {
+      const { metadata } = orderData;
+      const userId = metadata && metadata.user_id;
+      const excursionId = metadata && metadata.excursion_id;
+      const ticketType = metadata && metadata.ticket_type;
+      let carInfo = {};
+      try {
+        carInfo = JSON.parse((metadata && metadata.car_info) || '{}');
+      } catch (_) {
+        carInfo = {};
       }
 
-      const payment = new Payment(client);
-      const orderData = await payment.get({ id: paymentId });
+      if (!userId) {
+        console.error('Webhook MP: user_id ausente no metadata');
+        return;
+      }
 
-      if (orderData && (orderData.status === 'approved' || orderData.status === 'paid')) {
-        const { metadata } = orderData;
-        const userId = metadata && metadata.user_id;
-        const excursionId = metadata && metadata.excursion_id;
-        const ticketType = metadata && metadata.ticket_type;
-        let carInfo = {};
-        try {
-          carInfo = JSON.parse((metadata && metadata.car_info) || '{}');
-        } catch (_) {
-          carInfo = {};
-        }
+      const db = admin.firestore();
+      const orderRef = db.collection('users').doc(userId).collection('orders').doc(String(orderData.id));
+      const existing = await orderRef.get();
+      if (existing.exists) return; // já processado (idempotência)
 
-        if (!userId) {
-          console.error('Webhook MP: user_id ausente no metadata');
-        } else {
-          const db = admin.firestore();
-          const orderRef = db.collection('users').doc(userId).collection('orders').doc(String(orderData.id));
-          const existing = await orderRef.get();
-          if (existing.exists) {
-            return res.status(200).send('Webhook recebido.');
-          }
-
-          const ticketCode = generateTicketCode();
-          await orderRef.set({
-            excursionId: excursionId,
-            excursionName: orderData.additional_info?.items?.[0]?.title?.split(' (')[0] || '',
-            ticketType: ticketType,
-            price: Number(orderData.transaction_amount || 0),
-            status: 'Pago',
-            purchaseDate: new Date().toISOString(),
-            buyerName: orderData.payer?.first_name || '',
-            buyerEmail: orderData.payer?.email || '',
-            paymentId: orderData.id,
-            carInfo,
-            ticket: {
-              code: ticketCode,
-              validated: false,
-              validatedAt: null,
-              validatedBy: null,
-            },
-          });
+      const ticketCode = generateTicketCode();
+      await orderRef.set({
+        excursionId: excursionId,
+        excursionName: orderData.additional_info?.items?.[0]?.title?.split(' (')[0] || '',
+        ticketType: ticketType,
+        price: Number(orderData.transaction_amount || 0),
+        status: 'Pago',
+        purchaseDate: new Date().toISOString(),
+        buyerName: orderData.payer?.first_name || '',
+        buyerEmail: orderData.payer?.email || '',
+        paymentId: orderData.id,
+        carInfo,
+        ticket: {
+          code: ticketCode,
+          validated: false,
+          validatedAt: null,
+          validatedBy: null,
+        },
+      });
 
           if (excursionId) {
             const excursionRef = db.collection('excursions').doc(String(excursionId));
@@ -184,14 +196,10 @@ exports.receiveWebhook = async (req, res) => {
 
             await excursionRef.update(updateData);
           }
-        }
-      }
     }
-
-    return res.status(200).send('Webhook recebido.');
   } catch (error) {
-    console.error('Erro no webhook MP:', error.message || error);
-    return res.status(500).send('Erro ao processar webhook.');
+    // Resposta 200 já foi enviada. Apenas loga o erro internamente.
+    console.error('Erro interno no webhook MP:', error.message || error);
   }
 };
 
