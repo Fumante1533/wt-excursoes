@@ -52,7 +52,7 @@ export default function FormularioExcursao({ onSave, initialData, onCancel }) {
     setTickets(newTickets);
   };
 
-  const addTicket = () => setTickets([...tickets, { type: "", price: "" }]);
+  const addTicket = () => setTickets([...tickets, { type: "", price: "", quantity: "" }]);
   const removeTicket = (index) => setTickets(tickets.filter((_, i) => i !== index));
 
   const handleSubmit = async (e) => {
@@ -69,7 +69,7 @@ export default function FormularioExcursao({ onSave, initialData, onCancel }) {
       location,
       category,
       tag,
-      tickets: tickets.map((t) => ({ ...t, price: parseFloat(t.price) })),
+      tickets: tickets.map((t) => ({ ...t, price: parseFloat(t.price), quantity: parseInt(t.quantity, 10) || 0 })),
       included: included.filter((item) => item.trim() !== ""),
       notIncluded: notIncluded.filter((item) => item.trim() !== ""),
       totalSlots: parseInt(totalSlots, 10) || 0,
@@ -240,24 +240,43 @@ export default function FormularioExcursao({ onSave, initialData, onCancel }) {
           <h3 className="text-xl font-bold text-white mb-4">Inscrições</h3>
           <div className="space-y-4">
             {tickets.map((ticket, index) => (
-              <div key={index} className="flex items-center gap-4 p-4 bg-zinc-700/50 rounded-lg">
-                <Input
-                  placeholder="Tipo (Ex: Piloto, Espectador)"
-                  value={ticket.type}
-                  onChange={(e) => handleTicketChange(index, "type", e.target.value)}
-                  className="bg-zinc-600 text-white"
-                  required
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Preço (Ex: 850.00)"
-                  value={ticket.price}
-                  onChange={(e) => handleTicketChange(index, "price", e.target.value)}
-                  className="bg-zinc-600 text-white"
-                  required
-                />
-                <button type="button" onClick={() => removeTicket(index)} className="p-2 text-red-400 hover:text-red-300">
+              <div key={index} className="flex flex-wrap items-center gap-3 p-4 bg-zinc-700/50 rounded-lg border border-zinc-600">
+                <div className="flex-1 min-w-[160px]">
+                  <label className="text-xs text-zinc-400 mb-1 block">Tipo / Nome do Lote</label>
+                  <Input
+                    placeholder="Ex: Moto - 1º Lote"
+                    value={ticket.type}
+                    onChange={(e) => handleTicketChange(index, "type", e.target.value)}
+                    className="bg-zinc-600 text-white"
+                    required
+                  />
+                </div>
+                <div className="w-32">
+                  <label className="text-xs text-zinc-400 mb-1 block">Preço (R$)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="10.00"
+                    value={ticket.price}
+                    onChange={(e) => handleTicketChange(index, "price", e.target.value)}
+                    className="bg-zinc-600 text-white"
+                    required
+                  />
+                </div>
+                <div className="w-32">
+                  <label className="text-xs text-zinc-400 mb-1 block" title="Deixe 0 ou vazio para ilimitado">
+                    Vagas do Lote
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="0 = ilimitado"
+                    value={ticket.quantity}
+                    onChange={(e) => handleTicketChange(index, "quantity", e.target.value)}
+                    className="bg-zinc-600 text-white"
+                  />
+                </div>
+                <button type="button" onClick={() => removeTicket(index)} className="p-2 text-red-400 hover:text-red-300 mt-4">
                   <Trash2 />
                 </button>
               </div>

@@ -33,8 +33,19 @@ exports.createPreference = async (req, res) => {
     if (!excursionRef.exists) return res.status(400).json({ error: 'Excursão não encontrada.' });
 
     const excursionData = excursionRef.data();
-    const realTicket = excursionData.tickets.find((t) => t.type === ticket.type);
+    const realTicketIndex = excursionData.tickets.findIndex((t) => t.type === ticket.type);
+    const realTicket = realTicketIndex >= 0 ? excursionData.tickets[realTicketIndex] : null;
     if (!realTicket) return res.status(400).json({ error: 'Tipo de ingresso inválido.' });
+
+    // Verificar disponibilidade do lote
+    const qty = Number(realTicket.quantity || 0);
+    if (qty > 0) {
+      const soldCounts = excursionData.ticketSoldCounts || {};
+      const sold = Number(soldCounts[String(realTicketIndex)] || 0);
+      if (sold >= qty) {
+        return res.status(400).json({ error: `Inscrição "${ticket.type}" esgotada. Aguarde o próximo lote.` });
+      }
+    }
 
     const realPrice = realTicket.price;
 
@@ -159,9 +170,19 @@ exports.receiveWebhook = async (req, res) => {
 
           if (excursionId) {
             const excursionRef = db.collection('excursions').doc(String(excursionId));
-            await excursionRef.update({
-              bookedSlots: admin.firestore.FieldValue.increment(1),
-            });
+            const excursionSnap = await excursionRef.get();
+            const updateData = { bookedSlots: admin.firestore.FieldValue.increment(1) };
+
+            // Incrementar contagem do lote vendido
+            if (excursionSnap.exists && ticketType) {
+              const excursionData = excursionSnap.data();
+              const ticketIndex = (excursionData.tickets || []).findIndex((t) => t.type === ticketType);
+              if (ticketIndex >= 0) {
+                updateData[`ticketSoldCounts.${ticketIndex}`] = admin.firestore.FieldValue.increment(1);
+              }
+            }
+
+            await excursionRef.update(updateData);
           }
         }
       }

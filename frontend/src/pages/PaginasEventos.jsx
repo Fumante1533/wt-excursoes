@@ -401,29 +401,46 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
                   <div className="mt-auto">
                     <h2 className="text-2xl font-bold text-zinc-700 dark:text-white mb-4">Tipos de Inscrição</h2>
                     <div className="space-y-4">
-                      {excursion.tickets.map((ticket) => (
-                        <div
-                          key={ticket.type}
-                          className="flex justify-between items-center bg-zinc-100 dark:bg-zinc-800 p-4 rounded-lg"
-                        >
-                          <div>
-                            <p className="font-semibold text-zinc-800 dark:text-white">{ticket.type}</p>
-                            <p className="text-yellow-500 font-bold text-lg dark:text-yellow-400">
-                              R$ {ticket.price.toFixed(2)}
-                            </p>
-                          </div>
-                          <Button
-                            onClick={() => {
-                              if (typeof onNavigate.onAddToCart === "function") {
-                                onNavigate.onAddToCart(excursion, ticket);
-                              }
-                            }}
-                            disabled={typeof onNavigate.onAddToCart !== "function"}
+                      {excursion.tickets.map((ticket, index) => {
+                        const sold = excursion.ticketSoldCounts?.[String(index)] || 0;
+                        const qty = ticket.quantity || 0;
+                        const isSoldOut = qty > 0 && sold >= qty;
+                        const remaining = qty > 0 ? qty - sold : null;
+                        return (
+                          <div
+                            key={ticket.type}
+                            className={`flex justify-between items-center p-4 rounded-lg ${
+                              isSoldOut
+                                ? "bg-zinc-200 dark:bg-zinc-700/50 opacity-60"
+                                : "bg-zinc-100 dark:bg-zinc-800"
+                            }`}
                           >
-                            Inscrever-se <Ticket className="inline ml-2" size={18} />
-                          </Button>
-                        </div>
-                      ))}
+                            <div>
+                              <p className="font-semibold text-zinc-800 dark:text-white">{ticket.type}</p>
+                              <p className="text-yellow-500 font-bold text-lg dark:text-yellow-400">
+                                R$ {Number(ticket.price).toFixed(2)}
+                              </p>
+                              {isSoldOut ? (
+                                <span className="text-xs font-bold text-red-500 uppercase tracking-wide">🔴 Esgotado</span>
+                              ) : remaining !== null ? (
+                                <span className="text-xs text-green-600 dark:text-green-400">
+                                  {remaining} {remaining === 1 ? "vaga restante" : "vagas restantes"}
+                                </span>
+                              ) : null}
+                            </div>
+                            <Button
+                              onClick={() => {
+                                if (typeof onNavigate.onAddToCart === "function") {
+                                  onNavigate.onAddToCart(excursion, ticket);
+                                }
+                              }}
+                              disabled={isSoldOut || typeof onNavigate.onAddToCart !== "function"}
+                            >
+                              {isSoldOut ? "Esgotado" : <>Inscrever-se <Ticket className="inline ml-2" size={18} /></>}
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : (
