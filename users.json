@@ -1,0 +1,47 @@
+{"users": [
+{
+  "localId": "0uEDlhD7h0aRI6yqJGk35DRE5ep1",
+  "email": "yjuniorbrgc@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "JUSI/1nfDEkZkTCUM3T3anOqudOKR4pe7qRnDTnLDyQcWpYFKn7yjwuo7L0c9nXlmrz8oH2ha/4DXwgG2YYdVA==",
+  "salt": "LBGalgpjS6MjwQ==",
+  "displayName": "jose carlos viana cacho junior",
+  "lastSignedInAt": "1764813788827",
+  "createdAt": "1764813695443",
+  "providerUserInfo": []
+},
+{
+  "localId": "EhJOQzxkHOUjRTbmdNDDIqe7XEy2",
+  "email": "itacars237@admin.com",
+  "emailVerified": false,
+  "passwordHash": "RNWTJSEv5VBkl9ElsLMxNgV3VKGlZdYBB6SvT4wNpHorV5SDvNMFP+VkiYLriRXXPuYfuWCeBTL5HeJsTVegFQ==",
+  "salt": "KB7AHw0jiDVqhw==",
+  "displayName": "Aryel A. Negri",
+  "lastSignedInAt": "1774725520816",
+  "createdAt": "1774575022804",
+  "providerUserInfo": []
+},
+{
+  "localId": "g7XSNoxavHSiqwMf9WIffEZDd902",
+  "email": "aryelgamerbrs2@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "XhbmDib8w5ujqULVXuLH9XOMufcGFzEDbITCOjvnfLeQ6EAADkQmFsPvBmeGk2ydg57bw2s3yxBJt2ihfp5GyA==",
+  "salt": "v7HJASpPm44l9A==",
+  "displayName": "Aryel A. Negri",
+  "lastSignedInAt": "1777324759865",
+  "createdAt": "1777322166248",
+  "providerUserInfo": []
+},
+{
+  "localId": "gqRfNQt4GmMzXo5T2eIg11EjwtW2",
+  "email": "admin@wtexcursoes.com",
+  "emailVerified": false,
+  "passwordHash": "pna/efrdFk3FBQsOqski9lTiwo/uuan0KiQ0Rw1H3Q/0QC7+KJR/3VWUIhlom4wHhAoUH7VCRNhSTZTi4xevtQ==",
+  "salt": "cX+k8kkiRLHacQ==",
+  "displayName": "Administrador",
+  "lastSignedInAt": "1764822642336",
+  "createdAt": "1764814144570",
+  "disabled": false,
+  "customAttributes": "{\"admin\":true}",
+  "providerUserInfo": []
+}]}
