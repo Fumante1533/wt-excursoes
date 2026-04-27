@@ -186,7 +186,7 @@ function ValidadorIngressos({ excursions }) {
     setIsValidating(true);
     setResult(null);
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+      const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
       const user = auth?.currentUser;
       if (!user) {
         toast.error("Admin não autenticado.");
