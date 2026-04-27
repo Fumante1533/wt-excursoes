@@ -21,7 +21,7 @@ const PaginaResultadoTap = ({ onNavigate }) => {
         const data = {};
         for (const [k, v] of params.entries()) data[k] = v;
 
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+        const backendUrl = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
         if (!backendUrl) {
           onNavigate('error', { orderDetails: data });
           return;
