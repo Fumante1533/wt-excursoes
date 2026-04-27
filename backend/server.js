@@ -11,8 +11,24 @@ const userRoutes = require('./routes/user');
 
 const app = express();
 
+const allowedOrigins = [
+  'https://itajobicarsclub.com.br',
+  'https://www.itajobicarsclub.com.br',
+  'https://api.itajobicarsclub.com.br',
+  'http://localhost:5173',
+  'http://localhost:3001',
+];
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Permite requests sem origin (ex: Postman, curl, mobile apps)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS bloqueado para origem: ${origin}`));
+    }
+  },
+  credentials: true,
 };
 
 app.use(helmet());

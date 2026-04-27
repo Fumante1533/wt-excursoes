@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { MessageSquare } from "lucide-react";
 import { Wallet } from "@mercadopago/sdk-react";
-import { db } from "../firebaseConfig";
+import { db, auth } from "../firebaseConfig";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
 
 export default function PaginaCheckout({ cart, user }) {
@@ -132,7 +132,17 @@ export default function PaginaCheckout({ cart, user }) {
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
       const firstItem = cart[0];
-      const token = user ? await user.getIdToken() : "";
+      // Usa auth.currentUser para garantir acesso ao método getIdToken() do SDK Firebase
+      // (o prop `user` pode ser um plain object sem os métodos do SDK)
+      let token = "";
+      try {
+        const currentUser = auth?.currentUser;
+        if (currentUser && typeof currentUser.getIdToken === "function") {
+          token = await currentUser.getIdToken();
+        }
+      } catch (tokenErr) {
+        console.warn("Não foi possível obter o token de autenticação:", tokenErr);
+      }
 
       const response = await fetch(`${backendUrl}/api/payment/create-preference`, {
         method: "POST",
