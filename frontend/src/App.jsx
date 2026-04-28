@@ -352,6 +352,8 @@ export default function App() {
     let path = "/";
     if (newPage === "adminLogin" || newPage === "adminDashboard") {
       path = "/admin";
+    } else if (newPage === "eventDetail") {
+      path = `/excursions/${data.eventId}`;
     } else if (newPage !== "home") {
       path = `/${newPage}`;
     }

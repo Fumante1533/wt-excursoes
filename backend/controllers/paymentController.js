@@ -128,6 +128,20 @@ exports.createPreference = async (req, res) => {
     const response = await preference.create({ body });
 
     if (response && response.id) {
+      // Salva o pedido como PENDENTE para rastreio de Carrinho Abandonado
+      const orderRef = db.collection('users').doc(uid).collection('orders').doc(String(response.id));
+      await orderRef.set({
+        excursionId: excursion.id,
+        excursionName: excursionData.name,
+        ticketType: ticket.type,
+        price: Number(realPrice) * totalQtyDemanded,
+        status: 'Pendente',
+        createdAt: new Date().toISOString(),
+        buyerName: payerEmail.split('@')[0],
+        buyerEmail: payerEmail,
+        abandonedCartSent: false
+      });
+
       return res.json({ id: response.id, checkout_url: response.init_point });
     }
     return res.status(500).json({ error: 'Não foi possível obter a URL de checkout.' });
