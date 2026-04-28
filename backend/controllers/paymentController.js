@@ -1,7 +1,37 @@
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 const admin = require('../config/firebaseAdmin');
 const { generateTicketCode, normalizeTicketCode, isAdminRequest } = require('../utils/ticketUtils');
+const nodemailer = require('nodemailer');
 
+const sendTicketEmail = async (email, name, eventName, ticketCode) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    });
+    await transporter.sendMail({
+      from: `"Itajobi Cars Club" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `Seu Ingresso: ${eventName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; text-align: center; color: #333;">
+          <h2 style="color: #eab308;">Acelere com a gente!</h2>
+          <p>Olá <strong>${name}</strong>, seu pagamento foi aprovado.</p>
+          <p>Seu ingresso para o <strong>${eventName}</strong> está garantido.</p>
+          <div style="margin: 20px auto; padding: 20px; background: #f3f4f6; border-radius: 8px; display: inline-block;">
+            <p style="font-size: 18px; margin: 0;">Código do Ingresso:</p>
+            <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">${ticketCode}</p>
+          </div>
+          <p>Apresente este código na entrada do evento.</p>
+          <p>Nos vemos lá!</p>
+        </div>
+      `
+    });
+  } catch (err) {
+    console.error('Erro ao enviar email:', err);
+  }
+};
 let client;
 if (process.env.MERCADO_PAGO_ACCESS_TOKEN) {
   client = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN });
@@ -222,6 +252,18 @@ exports.receiveWebhook = async (req, res) => {
       }
 
       await batch.commit();
+
+      // Envia os emails de forma assíncrona
+      if (orderData.payer?.email) {
+        sendTicketEmail(orderData.payer.email, orderData.payer.first_name || 'Comprador', excursionNameStr, ticketCodeMain);
+      }
+      if (Array.isArray(additionalPassengers)) {
+        additionalPassengers.forEach((passenger, idx) => {
+          if (passenger.email) {
+            sendTicketEmail(passenger.email, passenger.fullName || 'Acompanhante', excursionNameStr, `${orderData.id}_${idx + 1}`);
+          }
+        });
+      }
 
           if (excursionId) {
             const excursionRef = db.collection('excursions').doc(String(excursionId));

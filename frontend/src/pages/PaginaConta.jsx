@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ShoppingBag, Calendar, Ticket } from "lucide-react";
+import { Sparkles, ShoppingBag, Calendar, Ticket, Download } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
+import html2canvas from "html2canvas";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import {
   collection,
@@ -345,19 +346,35 @@ function ComprasUsuario({ user, excursions, onNavigate, db: firestore }) {
     );
   }
 
+  const downloadTicket = async (orderId) => {
+    const element = document.getElementById(`ticket-${orderId}`);
+    if (!element) return;
+    try {
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#18181b" });
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.download = `ingresso-${orderId}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Erro ao gerar PDF/Imagem:", err);
+      toast.error("Não foi possível gerar o ingresso.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {orders.map((order) => {
         const firstItem = Array.isArray(order.items) ? order.items[0] : null;
         const eventId = order.excursionId || firstItem?.excursionId;
         const eventName = order.excursionName || firstItem?.excursionName || "Evento";
-        const eventDate = order.excursionDate || firstItem?.excursionDate;
+        const excursionDetails = excursions.find((ex) => String(ex.id) === String(eventId));
+        const eventDate = order.excursionDate || firstItem?.excursionDate || excursionDetails?.date;
         const ticketType = order.ticketType || firstItem?.ticketType || "-";
         const amount = order.price ?? order.totalPrice ?? 0;
-        const excursionDetails = excursions.find((ex) => String(ex.id) === String(eventId));
         const carInfo = order.carInfo || {};
         return (
-          <Card key={order.id} className="p-6 flex flex-col md:flex-row items-start md:items-center gap-6">
+          <Card key={order.id} id={`ticket-${order.id}`} className="p-6 flex flex-col md:flex-row items-start md:items-center gap-6 relative">
             <img
               src={excursionDetails?.image}
               alt={eventName}
@@ -407,6 +424,16 @@ function ComprasUsuario({ user, excursions, onNavigate, db: firestore }) {
               <p className="text-2xl font-bold text-yellow-400">
                 R$ {amount?.toFixed ? amount.toFixed(2) : amount}
               </p>
+              {order.ticket?.code && (
+                <Button 
+                  className="mt-4 w-full md:w-auto" 
+                  onClick={() => downloadTicket(order.id)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Download size={16} className="mr-2 inline" /> Baixar Ingresso
+                </Button>
+              )}
             </div>
           </Card>
         );

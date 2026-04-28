@@ -40,4 +40,46 @@ router.post('/avatar', verifyFirebaseToken, upload.single('avatar'), (req, res) 
   res.json({ url: fileUrl });
 });
 
+const admin = require('../config/firebaseAdmin');
+
+// POST /api/user/link-guest-orders
+// Vincula pedidos de visitante ao usuário recém cadastrado/logado
+router.post('/link-guest-orders', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { uid, email } = req.user;
+    if (!email) return res.status(400).json({ error: 'Usuário sem e-mail.' });
+
+    const db = admin.firestore();
+    const ordersQuery = db.collectionGroup('orders').where('buyerEmail', '==', email);
+    const snap = await ordersQuery.get();
+    
+    if (snap.empty) {
+      return res.json({ message: 'Nenhum pedido de visitante encontrado.' });
+    }
+
+    const batch = db.batch();
+    let movedCount = 0;
+
+    snap.docs.forEach(docSnap => {
+      // O caminho é users/{userId}/orders/{orderId}
+      const parentUserRef = docSnap.ref.parent.parent;
+      if (parentUserRef && parentUserRef.id.startsWith('guest_')) {
+        const newOrderRef = db.collection('users').doc(uid).collection('orders').doc(docSnap.id);
+        batch.set(newOrderRef, docSnap.data());
+        batch.delete(docSnap.ref);
+        movedCount++;
+      }
+    });
+
+    if (movedCount > 0) {
+      await batch.commit();
+    }
+
+    res.json({ message: `${movedCount} ingressos vinculados com sucesso.` });
+  } catch (err) {
+    console.error('Erro ao vincular ingressos:', err);
+    res.status(500).json({ error: 'Erro interno ao vincular ingressos.' });
+  }
+});
+
 module.exports = router;

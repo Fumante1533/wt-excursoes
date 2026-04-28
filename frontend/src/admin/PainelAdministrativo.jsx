@@ -14,6 +14,7 @@ import {
   FileText,
   Menu,
   X,
+  Download,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { collection, getDocs } from "firebase/firestore";
@@ -80,9 +81,39 @@ function TabelaExcursaoAdmin({ excursions, onEdit, onDelete }) {
 }
 
 function ListaPedidosAdmin({ orders }) {
+  const exportToCSV = () => {
+    const headers = ["Nome", "Email", "Evento", "Tipo de Ingresso", "Status", "Preço", "Placa do Carro", "Código Ingresso"];
+    const rows = orders.map(order => [
+      `"${order.buyerName || ""}"`,
+      `"${order.buyerEmail || ""}"`,
+      `"${order.excursionName || ""}"`,
+      `"${order.ticketType || ""}"`,
+      `"${order.status || ""}"`,
+      order.price || 0,
+      `"${order.carInfo?.plate || ""}"`,
+      `"${order.ticket?.code || ""}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `lista_presenca_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <h2 className="text-3xl font-bold text-white mb-6">Lista de Compradores</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold text-white">Lista de Compradores</h2>
+        <button 
+          onClick={exportToCSV}
+          className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md font-semibold transition-colors flex items-center"
+        >
+          <Download size={18} className="mr-2" /> Exportar Planilha
+        </button>
+      </div>
       <div className="bg-zinc-800 rounded-lg shadow-xl overflow-x-auto">
         <table className="w-full text-left text-zinc-300 min-w-[600px]">
           <thead className="bg-zinc-900/50">

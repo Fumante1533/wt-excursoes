@@ -143,20 +143,28 @@ export default function App() {
 
                     try {
                       if (db) {
-                  const userDocRef = doc(db, "users", currentUser.uid);
+                        const userDocRef = doc(db, "users", currentUser.uid);
                         const snap = await getDoc(userDocRef);
                         if (!snap.exists()) {
                           await setDoc(userDocRef, {
-                      displayName: currentUser.displayName || "",
-                      email: currentUser.email || "",
-                      photoURL: currentUser.photoURL || "",
-                      createdAt: serverTimestamp(),
-                    });
-                    console.info("Documento de usuário criado automaticamente:", currentUser.uid);
+                            displayName: currentUser.displayName || "",
+                            email: currentUser.email || "",
+                            photoURL: currentUser.photoURL || "",
+                            createdAt: serverTimestamp(),
+                          });
+                          console.info("Documento de usuário criado automaticamente:", currentUser.uid);
                         }
                       }
+                      
+                      // Chama a API de vinculação de convidados
+                      const token = await currentUser.getIdToken();
+                      const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
+                      await fetch(`${backendUrl}/api/user/link-guest-orders`, {
+                        method: "POST",
+                        headers: { "Authorization": `Bearer ${token}` }
+                      });
                     } catch (err) {
-                console.warn("Erro ao criar documento de usuário automaticamente:", err);
+                      console.warn("Erro ao lidar com dados de usuário:", err);
                     }
                   } else {
                     setIsAdmin(false);
