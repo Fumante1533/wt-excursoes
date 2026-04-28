@@ -8,8 +8,12 @@ const rateLimit = require('express-rate-limit');
 const paymentRoutes = require('./routes/paymentRoutes');
 const importRoutes = require('./routes/import');
 const userRoutes = require('./routes/user');
+const { initCronJobs } = require('./jobs/cronJobs');
 
 const app = express();
+
+// Inicia os serviços em background
+initCronJobs();
 
 // Necessário quando atrás de proxy (Cloudflare/Nginx)
 // Sem isso, express-rate-limit lança ValidationError e retorna 400
