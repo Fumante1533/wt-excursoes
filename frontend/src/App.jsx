@@ -279,14 +279,14 @@ export default function App() {
     useEffect(() => {
         if (!firebaseInitialized || !db) return;
 
-    const eventosRef = collection(db, "eventos");
+    const excursionsRef = collection(db, "excursions");
     const blogRef = collection(db, "blogPosts");
     const faqsRef = collection(db, "faqs");
 
-    const unsubscribeEventos = onSnapshot(query(eventosRef, orderBy("date", "desc")), (snapshot) => {
+    const unsubscribeExcursions = onSnapshot(query(excursionsRef, orderBy("date", "desc")), (snapshot) => {
       // Sincroniza com o Firestore. Se estiver vazio, o estado refletirá isso.
-      const eventosData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setEventos(eventosData.length > 0 ? eventosData : initialEvents);
+      const excursionsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setEventos(excursionsData.length > 0 ? excursionsData : initialEvents);
     });
 
     const unsubscribeBlog = onSnapshot(query(blogRef, orderBy("createdAt", "desc")), (snapshot) => {
@@ -302,7 +302,7 @@ export default function App() {
     });
 
         return () => {
-          unsubscribeEventos();
+          unsubscribeExcursions();
           unsubscribeBlog();
           unsubscribeFaqs();
         };
@@ -428,8 +428,8 @@ const addEvento = async (newEventoData) => {
     }
 
     try {
-      const eventosCollectionRef = collection(db, "eventos");
-        const docRef = await addDoc(eventosCollectionRef, newEventoData);
+      const excursionsCollectionRef = collection(db, "excursions");
+        const docRef = await addDoc(excursionsCollectionRef, newEventoData);
         const finalEvento = { 
             id: docRef.id, 
         ...newEventoData,
@@ -453,8 +453,8 @@ const updateEvento = async (updatedEventoData) => {
         return;
     }
     const { id, ...data } = updatedEventoData;
-    const eventoDocRef = doc(db, "eventos", String(id));
-    await setDoc(eventoDocRef, data, { merge: true });
+    const excursionsDocRef = doc(db, "excursions", String(id));
+    await setDoc(excursionsDocRef, data, { merge: true });
 };
 
 const deleteEvento = async (id) => {
@@ -472,8 +472,8 @@ const deleteEvento = async (id) => {
     }
     
     try {
-      const eventoDocRef = doc(db, "eventos", stringId);
-        await deleteDoc(eventoDocRef);
+      const excursionsDocRef = doc(db, "excursions", stringId);
+        await deleteDoc(excursionsDocRef);
         toast.success("Evento excluído!");
     } catch (error) {
         console.error("Erro ao excluir evento:", error);
