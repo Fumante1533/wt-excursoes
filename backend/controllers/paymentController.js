@@ -284,7 +284,7 @@ exports.confirmPayment = async (req, res) => {
 exports.validateTicket = async (req, res) => {
   try {
     if (!isAdminRequest(req.user)) {
-      return res.status(403).json({ error: 'Acesso restrito a administradores.' });
+      return res.status(403).json({ error: `Acesso restrito a administradores. (Sua conta: ${req.user ? req.user.email : 'Nenhuma'})` });
     }
     const { ticketCode, excursionId } = req.body || {};
     const normalized = normalizeTicketCode(ticketCode);
