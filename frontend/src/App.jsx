@@ -129,10 +129,11 @@ export default function App() {
                       const idResult = await getIdTokenResult(currentUser);
                       const isAdminClaim = !!(idResult && idResult.claims && idResult.claims.admin);
                       const currentEmail = currentUser && currentUser.email ? currentUser.email.trim().toLowerCase() : "";
-                      const normalizedAdmin = (ADMIN_EMAIL || "").trim().toLowerCase();
-                      const emailAdmin = !!(normalizedAdmin && currentEmail === normalizedAdmin);
-                setIsAdmin(isAdminClaim);
-                setIsAdminUi(isAdminClaim || emailAdmin);
+                      const normalizedAdmin = (ADMIN_EMAIL || "itacars237@admin.com").trim().toLowerCase();
+                      const secondaryAdmin = "aryelgamerbrs2@gmail.com";
+                      const emailAdmin = !!(normalizedAdmin && currentEmail === normalizedAdmin) || currentEmail === secondaryAdmin;
+                      setIsAdmin(isAdminClaim);
+                      setIsAdminUi(isAdminClaim || emailAdmin);
                     } catch (err) {
                 console.warn("getIdTokenResult falhou, usando verificação por email como fallback:", err);
                 const currentEmail = currentUser && currentUser.email ? currentUser.email.trim().toLowerCase() : "";
@@ -195,8 +196,9 @@ export default function App() {
           const idResult = await getIdTokenResult(currentUser);
           const isAdminClaim = !!(idResult && idResult.claims && idResult.claims.admin);
           const currentEmail = currentUser && currentUser.email ? currentUser.email.trim().toLowerCase() : "";
-          const normalizedAdmin = (ADMIN_EMAIL || "").trim().toLowerCase();
-          const emailAdmin = !!(normalizedAdmin && currentEmail === normalizedAdmin);
+          const normalizedAdmin = (ADMIN_EMAIL || "itacars237@admin.com").trim().toLowerCase();
+          const secondaryAdmin = "aryelgamerbrs2@gmail.com";
+          const emailAdmin = !!(normalizedAdmin && currentEmail === normalizedAdmin) || currentEmail === secondaryAdmin;
           setIsAdmin(isAdminClaim);
           setIsAdminUi(isAdminClaim || emailAdmin);
           if (isAdminClaim || emailAdmin) {
@@ -281,11 +283,10 @@ export default function App() {
     const blogRef = collection(db, "blogPosts");
     const faqsRef = collection(db, "faqs");
 
-    const unsubscribeEventos = onSnapshot(eventosRef, (snapshot) => {
-      // Se o Firestore estiver vazio (fresh project), mantemos os exemplos locais.
-      if (snapshot.empty) return;
+    const unsubscribeEventos = onSnapshot(query(eventosRef, orderBy("date", "desc")), (snapshot) => {
+      // Sincroniza com o Firestore. Se estiver vazio, o estado refletirá isso.
       const eventosData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setEventos(eventosData);
+      setEventos(eventosData.length > 0 ? eventosData : initialEvents);
     });
 
     const unsubscribeBlog = onSnapshot(query(blogRef, orderBy("createdAt", "desc")), (snapshot) => {
@@ -307,9 +308,6 @@ export default function App() {
         };
     }, [firebaseInitialized]);
 
-  useEffect(() => {
-    setEventos(initialEvents);
-  }, []);
 
   useEffect(() => {
     const isDark = localStorage.getItem("darkMode") !== "false";
@@ -336,8 +334,9 @@ export default function App() {
             const idResult = await getIdTokenResult(currentUser);
             const isAdminClaim = !!(idResult && idResult.claims && idResult.claims.admin);
             const currentEmail = (currentUser.email || "").trim().toLowerCase();
-            const normalizedAdmin = (ADMIN_EMAIL || "").trim().toLowerCase();
-            const emailAdmin = !!(normalizedAdmin && currentEmail === normalizedAdmin);
+            const normalizedAdmin = (ADMIN_EMAIL || "itacars237@admin.com").trim().toLowerCase();
+            const secondaryAdmin = "aryelgamerbrs2@gmail.com";
+            const emailAdmin = !!(normalizedAdmin && currentEmail === normalizedAdmin) || currentEmail === secondaryAdmin;
             setIsAdmin(isAdminClaim);
             setIsAdminUi(isAdminClaim || emailAdmin);
           } catch (err) {
