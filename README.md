@@ -50,11 +50,11 @@ cd backend
 npm run create-admin -- --email=admin@seu-dominio.com --password=SuaSenhaForte
 ```
 
-### Importar excursoes (manual)
+### Importar eventos (manual)
 
 ```bash
 cd backend
-npm run import-excursions -- ./data/imports/excursoes.json
+npm run import-eventos -- ./data/imports/eventos.json
 ```
 
 ## Seguranca operacional

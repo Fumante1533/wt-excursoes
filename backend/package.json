@@ -1,12 +1,12 @@
 {
-  "name": "wt-excursoes-backend",
+  "name": "wt-eventos-backend",
   "version": "1.0.0",
-  "description": "Backend para o site WT Excursões com integração Mercado Pago.",
+  "description": "Backend para o site WT Eventos com integração Mercado Pago.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "import-excursions": "node scripts/import-excursions.js",
+    "import-eventos": "node scripts/import-eventos.js",
     "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {

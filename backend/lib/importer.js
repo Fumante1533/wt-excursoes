@@ -39,7 +39,7 @@ async function importFromFile(filePath, options = { dryRun: false }) {
   items.forEach((it) => {
     const mapped = mapItem(it);
     const docId = String(mapped.id || mapped.name || Date.now());
-    const docRef = db.collection('excursions').doc(docId);
+    const docRef = db.collection('eventos').doc(docId);
     batch.set(docRef, mapped, { merge: true });
   });
   await batch.commit();

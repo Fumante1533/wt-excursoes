@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
 
-const targetFile = process.argv[2] || path.resolve(__dirname, '..', '..', '..', 'wpp bot', 'excursoes.json');
-const endpoint = process.env.IMPORT_ENDPOINT || 'http://localhost:3001/api/import-excursions';
+const targetFile = process.argv[2] || path.resolve(__dirname, '..', '..', '..', 'wpp bot', 'eventos.json');
+const endpoint = process.env.IMPORT_ENDPOINT || 'http://localhost:3001/api/import-eventos';
 const debounceMs = 1000;
 const importDestDir = path.resolve(__dirname, '..', 'data', 'imports');
 

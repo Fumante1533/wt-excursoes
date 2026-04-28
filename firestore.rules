@@ -22,7 +22,7 @@ service cloud.firestore {
     }
 
     // --- Catálogo e conteúdo público (escrita só admin) ---
-    match /excursions/{id} {
+    match /eventos/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }

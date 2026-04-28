@@ -11,7 +11,7 @@ const db = admin.firestore();
 
 const args = process.argv.slice(2);
 if (args.length === 0) {
-  console.error('Uso: node import-excursions.js <caminho-para-json> [--dry-run]');
+  console.error('Uso: node import-eventos.js <caminho-para-json> [--dry-run]');
   process.exit(1);
 }
 
@@ -31,7 +31,7 @@ async function main() {
     let items = JSON.parse(raw);
     if (!Array.isArray(items)) items = [items];
 
-    console.log(`Preparando importação de ${items.length} excursão(ões)`);
+    console.log(`Preparando importação de ${items.length} evento(ões)`);
 
     // Dry-run: apenas mostrar mapeamento
     if (dryRun) {
@@ -48,7 +48,7 @@ async function main() {
     items.forEach((it) => {
       const mapped = mapItem(it);
       const docId = String(mapped.id || mapped.name || Date.now());
-      const docRef = db.collection('excursions').doc(docId);
+      const docRef = db.collection('eventos').doc(docId);
       batch.set(docRef, mapped, { merge: true });
     });
 

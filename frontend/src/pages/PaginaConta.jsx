@@ -299,7 +299,7 @@ function GerenciamentoCarrosUsuario({ user, db: firestore }) {
   );
 }
 
-function ComprasUsuario({ user, excursions, onNavigate, db: firestore }) {
+function ComprasUsuario({ user, eventos, onNavigate, db: firestore }) {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -366,17 +366,17 @@ function ComprasUsuario({ user, excursions, onNavigate, db: firestore }) {
     <div className="space-y-6">
       {orders.map((order) => {
         const firstItem = Array.isArray(order.items) ? order.items[0] : null;
-        const eventId = order.excursionId || firstItem?.excursionId;
-        const eventName = order.excursionName || firstItem?.excursionName || "Evento";
-        const excursionDetails = excursions.find((ex) => String(ex.id) === String(eventId));
-        const eventDate = order.excursionDate || firstItem?.excursionDate || excursionDetails?.date;
+        const eventId = order.eventoId || firstItem?.eventoId;
+        const eventName = order.eventoName || firstItem?.eventoName || "Evento";
+        const eventoDetails = eventos.find((ex) => String(ex.id) === String(eventId));
+        const eventDate = order.eventoDate || firstItem?.eventoDate || eventoDetails?.date;
         const ticketType = order.ticketType || firstItem?.ticketType || "-";
         const amount = order.price ?? order.totalPrice ?? 0;
         const carInfo = order.carInfo || {};
         return (
           <Card key={order.id} id={`ticket-${order.id}`} className="p-6 flex flex-col md:flex-row items-start md:items-center gap-6 relative">
             <img
-              src={excursionDetails?.image}
+              src={eventoDetails?.image}
               alt={eventName}
               className="w-full md:w-48 h-48 md:h-32 object-cover rounded-lg"
             />
@@ -442,7 +442,7 @@ function ComprasUsuario({ user, excursions, onNavigate, db: firestore }) {
   );
 }
 
-export default function PaginaConta({ user, excursions, onNavigate, db: firestore, initialTab }) {
+export default function PaginaConta({ user, eventos, onNavigate, db: firestore, initialTab }) {
   const [activeTab, setActiveTab] = useState(initialTab || onNavigate?.initialTab || "purchases");
   const [wishlist, setWishlist] = useState([]);
 
@@ -455,12 +455,12 @@ export default function PaginaConta({ user, excursions, onNavigate, db: firestor
       const wishlistRef = collection(firestore, "users", user.uid, "wishlist");
       const unsubscribe = onSnapshot(wishlistRef, (snapshot) => {
         const wishlistIds = snapshot.docs.map((d) => d.id);
-        const wishlistExcursions = excursions.filter((ex) => wishlistIds.includes(String(ex.id)));
-        setWishlist(wishlistExcursions);
+        const wishlistEventos = eventos.filter((ex) => wishlistIds.includes(String(ex.id)));
+        setWishlist(wishlistEventos);
       });
       return () => unsubscribe();
     }
-  }, [user, firestore, activeTab, excursions]);
+  }, [user, firestore, activeTab, eventos]);
 
   return (
     <PageWrapper>
@@ -528,7 +528,7 @@ export default function PaginaConta({ user, excursions, onNavigate, db: firestor
             >
               {activeTab === "profile" && <PerfilUsuario user={user} db={firestore} />}
               {activeTab === "purchases" && (
-                <ComprasUsuario user={user} excursions={excursions} onNavigate={onNavigate} db={firestore} />
+                <ComprasUsuario user={user} eventos={eventos} onNavigate={onNavigate} db={firestore} />
               )}
               {activeTab === "myCars" && <GerenciamentoCarrosUsuario user={user} db={firestore} />}
               {activeTab === "wishlist" && (

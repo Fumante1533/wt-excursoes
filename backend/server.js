@@ -63,11 +63,11 @@ if (paymentProvider === 'stripe' && process.env.STRIPE_WEBHOOK_SECRET) {
 app.use(express.json({ limit: '2mb' }));
 
 app.get('/', (req, res) => {
-  res.send('Backend WT Excursões está no ar!');
+  res.send('Backend WT Eventos está no ar!');
 });
 
 app.use('/api/payment', paymentRoutes);
-app.use('/api/import-excursions', importRoutes);
+app.use('/api/import-eventos', importRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/user', userRoutes);
 

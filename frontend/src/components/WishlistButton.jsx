@@ -3,26 +3,26 @@ import { Heart } from 'lucide-react';
 import { doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { toast } from 'react-hot-toast'; // NOVO
 
-const WishlistButton = ({ userId, excursionId, db }) => {
+const WishlistButton = ({ userId, eventoId, db }) => {
     const [isInWishlist, setIsInWishlist] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const checkWishlist = async () => {
             setIsLoading(true);
-            const wishlistRef = doc(db, 'users', userId, 'wishlist', String(excursionId));
+            const wishlistRef = doc(db, 'users', userId, 'wishlist', String(eventoId));
             const docSnap = await getDoc(wishlistRef);
             setIsInWishlist(docSnap.exists());
             setIsLoading(false);
         };
         checkWishlist();
-    }, [userId, excursionId, db]);
+    }, [userId, eventoId, db]);
 
     const handleToggleWishlist = async (e) => {
         e.stopPropagation(); // Impede que o clique no botão ative o link do card
         if (isLoading) return;
 
-        const wishlistRef = doc(db, 'users', userId, 'wishlist', String(excursionId));
+        const wishlistRef = doc(db, 'users', userId, 'wishlist', String(eventoId));
         if (isInWishlist) {
             await deleteDoc(wishlistRef);
             setIsInWishlist(false);

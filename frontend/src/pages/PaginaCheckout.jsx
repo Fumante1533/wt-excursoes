@@ -166,7 +166,7 @@ export default function PaginaCheckout({ cart, user }) {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          excursion: firstItem.excursion,
+          evento: firstItem.evento,
           ticket: { ...firstItem.ticket, price: totalPrice },
           buyerInfo,
           carInfo: {
@@ -210,7 +210,7 @@ export default function PaginaCheckout({ cart, user }) {
                 key={item.id}
                 className="bg-yellow-500/10 dark:bg-zinc-800/50 border-l-4 border-yellow-500 p-4 rounded-r-lg"
               >
-                <h2 className="font-bold text-lg text-yellow-800 dark:text-yellow-300">{item.excursion.name}</h2>
+                <h2 className="font-bold text-lg text-yellow-800 dark:text-yellow-300">{item.evento.name}</h2>
                 <p className="text-yellow-700 dark:text-yellow-400">
                   Inscrição: {item.ticket.type} (x{item.quantity})
                 </p>

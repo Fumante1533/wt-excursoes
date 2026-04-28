@@ -143,7 +143,7 @@ router.post('/resend-ticket', verifyFirebaseToken, async (req, res) => {
     await sendTicketEmail(
       targetOrder.buyerEmail, 
       targetOrder.buyerName || 'Participante', 
-      targetOrder.excursionName || 'Evento', 
+      targetOrder.eventoName || 'Evento', 
       targetOrder.ticket.code
     );
 

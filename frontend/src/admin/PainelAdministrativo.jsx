@@ -26,9 +26,9 @@ import CouponManagement from "./CouponManagement";
 import BlogManagement from "./BlogManagement";
 import { Button } from "../components/AppPrimitives";
 import CaixaDialogo from "../components/CaixaDialogo";
-import FormularioExcursao from "./FormularioExcursao";
+import FormularioEvento from "./FormularioEvento";
 
-function TabelaExcursaoAdmin({ excursions, onEdit, onDelete }) {
+function TabelaEventoAdmin({ eventos, onEdit, onDelete }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <h2 className="text-3xl font-bold text-white mb-6">Gerenciar Eventos</h2>
@@ -44,7 +44,7 @@ function TabelaExcursaoAdmin({ excursions, onEdit, onDelete }) {
             </tr>
           </thead>
           <tbody>
-            {excursions.map((ex) => (
+            {eventos.map((ex) => (
               <tr key={ex.id} className="border-b border-zinc-700 last:border-b-0 hover:bg-zinc-700/50">
                 <td className="p-4 font-semibold flex items-center">
                   <img src={ex.image} alt={ex.name} className="w-12 h-12 object-cover rounded-md mr-4" />
@@ -87,7 +87,7 @@ function ListaPedidosAdmin({ orders }) {
     const rows = orders.map(order => [
       `"${order.buyerName || ""}"`,
       `"${order.buyerEmail || ""}"`,
-      `"${order.excursionName || ""}"`,
+      `"${order.eventoName || ""}"`,
       `"${order.ticketType || ""}"`,
       `"${order.status || ""}"`,
       order.price || 0,
@@ -155,7 +155,7 @@ function ListaPedidosAdmin({ orders }) {
                   <p className="font-semibold text-white">{order.buyerName}</p>
                   <p className="text-sm text-zinc-400">{order.buyerEmail}</p>
                 </td>
-                <td className="p-4">{order.excursionName}</td>
+                <td className="p-4">{order.eventoName}</td>
                 <td className="p-4">{order.ticketType}</td>
                 <td className="p-4">
                   <span
@@ -184,9 +184,9 @@ function ListaPedidosAdmin({ orders }) {
   );
 }
 
-function ValidadorIngressos({ excursions }) {
+function ValidadorIngressos({ eventos }) {
   const [ticketCode, setTicketCode] = useState("");
-  const [excursionId, setExcursionId] = useState("");
+  const [eventoId, setEventoId] = useState("");
   const [isValidating, setIsValidating] = useState(false);
   const [result, setResult] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -205,7 +205,7 @@ function ValidadorIngressos({ excursions }) {
       const response = await fetch(`${backendUrl}/api/payment/validate-ticket`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ticketCode: code, ...(excursionId ? { excursionId } : {}) }),
+        body: JSON.stringify({ ticketCode: code, ...(eventoId ? { eventoId } : {}) }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Falha ao validar ingresso.");
@@ -276,12 +276,12 @@ function ValidadorIngressos({ excursions }) {
           className="w-full bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600 font-mono"
         />
         <select
-          value={excursionId}
-          onChange={(e) => setExcursionId(e.target.value)}
+          value={eventoId}
+          onChange={(e) => setEventoId(e.target.value)}
           className="w-full bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600"
         >
           <option value="">Validar em qualquer evento</option>
-          {excursions.map((ex) => (
+          {eventos.map((ex) => (
             <option key={ex.id} value={String(ex.id)}>{ex.name}</option>
           ))}
         </select>
@@ -292,7 +292,7 @@ function ValidadorIngressos({ excursions }) {
           <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-center">
             <p className="text-green-400 font-bold text-xl mb-2">✅ Ingresso Válido!</p>
             <p className="text-white font-semibold">{result.buyerName || "—"}</p>
-            <p className="text-zinc-300">{result.excursionName || "—"}</p>
+            <p className="text-zinc-300">{result.eventoName || "—"}</p>
             <p className="text-zinc-400 text-xs mt-2 font-mono">{result.ticketCode}</p>
           </div>
         )}
@@ -303,53 +303,53 @@ function ValidadorIngressos({ excursions }) {
 
 export default function PainelAdministrativo({
   onNavigate,
-  excursions,
-  onAddExcursion,
-  onUpdateExcursion,
-  onDeleteExcursion,
+  eventos,
+  onAddEvento,
+  onUpdateEvento,
+  onDeleteEvento,
   onLogout,
 }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [editingExcursion, setEditingExcursion] = useState(null);
+  const [editingEvento, setEditingEvento] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [excursionToDelete, setExcursionToDelete] = useState(null);
+  const [eventoToDelete, setEventoToDelete] = useState(null);
   const [orders, setOrders] = useState([]);
 
-  const handleEdit = (excursion) => {
-    setEditingExcursion(excursion);
-    setActiveTab("addExcursion");
+  const handleEdit = (evento) => {
+    setEditingEvento(evento);
+    setActiveTab("addEvento");
   };
 
-  const handleSaveExcursion = (excursionData) => {
-    if (editingExcursion) {
-      onUpdateExcursion(excursionData);
+  const handleSaveEvento = (eventoData) => {
+    if (editingEvento) {
+      onUpdateEvento(eventoData);
     } else {
-      onAddExcursion(excursionData);
+      onAddEvento(eventoData);
     }
-    setEditingExcursion(null);
-    setActiveTab("excursions");
+    setEditingEvento(null);
+    setActiveTab("eventos");
   };
 
-  const openDeleteModal = (excursion) => {
-    if (!excursion || !excursion.id) {
+  const openDeleteModal = (evento) => {
+    if (!evento || !evento.id) {
       console.warn("openDeleteModal ignorado: objeto sem ID.");
       toast.error("Não foi possível carregar os detalhes do evento para deleção.");
       return;
     }
-    setExcursionToDelete({ id: excursion.id, name: excursion.name });
+    setEventoToDelete({ id: evento.id, name: evento.name });
     setShowDeleteModal(true);
   };
 
   const confirmDelete = () => {
-    if (excursionToDelete && excursionToDelete.id) {
-      onDeleteExcursion(String(excursionToDelete.id));
+    if (eventoToDelete && eventoToDelete.id) {
+      onDeleteEvento(String(eventoToDelete.id));
     } else {
-      console.warn("Tentativa de exclusão ignorada: excursionToDelete.id é nulo ou indefinido.");
+      console.warn("Tentativa de exclusão ignorada: eventoToDelete.id é nulo ou indefinido.");
       toast.error("Erro: ID do evento não encontrado. Tente recarregar.");
     }
     setShowDeleteModal(false);
-    setExcursionToDelete(null);
+    setEventoToDelete(null);
   };
 
   useEffect(() => {
@@ -396,7 +396,7 @@ export default function PainelAdministrativo({
                 {
                   icon: Package,
                   label: "Eventos Ativos",
-                  value: excursions.length,
+                  value: eventos.length,
                 },
                 { icon: Users, label: "Total de Vendas", value: orders.length },
               ].map((kpi) => (
@@ -413,18 +413,18 @@ export default function PainelAdministrativo({
             </div>
           </>
         );
-      case "excursions":
+      case "eventos":
         return (
-          <TabelaExcursaoAdmin excursions={excursions} onEdit={handleEdit} onDelete={openDeleteModal} />
+          <TabelaEventoAdmin eventos={eventos} onEdit={handleEdit} onDelete={openDeleteModal} />
         );
-      case "addExcursion":
+      case "addEvento":
         return (
-          <FormularioExcursao
-            onSave={handleSaveExcursion}
-            initialData={editingExcursion}
+          <FormularioEvento
+            onSave={handleSaveEvento}
+            initialData={editingEvento}
             onCancel={() => {
-              setEditingExcursion(null);
-              setActiveTab("excursions");
+              setEditingEvento(null);
+              setActiveTab("eventos");
             }}
           />
         );
@@ -437,7 +437,7 @@ export default function PainelAdministrativo({
       case "blog":
         return <BlogManagement db={db} />;
       case "ticketValidation":
-        return <ValidadorIngressos excursions={excursions} />;
+        return <ValidadorIngressos eventos={eventos} />;
       default:
         return null;
     }
@@ -445,8 +445,8 @@ export default function PainelAdministrativo({
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: BarChart2 },
-    { id: "excursions", label: "Eventos", icon: Package },
-    { id: "addExcursion", label: "Adicionar", icon: Plus },
+    { id: "eventos", label: "Eventos", icon: Package },
+    { id: "addEvento", label: "Adicionar", icon: Plus },
     { id: "orders", label: "Compradores", icon: Users },
     { id: "ticketValidation", label: "Validar Ingressos", icon: Tag },
     { id: "users", label: "Usuários", icon: UserCircle2 },
@@ -464,7 +464,7 @@ export default function PainelAdministrativo({
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => { setActiveTab(item.id); setEditingExcursion(null); setSidebarOpen(false); }}
+            onClick={() => { setActiveTab(item.id); setEditingEvento(null); setSidebarOpen(false); }}
             className={`w-full text-left flex items-center p-3 rounded-lg mb-2 transition-colors ${
               activeTab === item.id ? "bg-violet-600 text-white" : "text-zinc-300 hover:bg-zinc-800"
             }`}
@@ -511,7 +511,7 @@ export default function PainelAdministrativo({
       </div>
       <CaixaDialogo isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirmar Exclusão">
         <p className="text-zinc-300 mb-6">
-          Você tem certeza que deseja excluir o evento "{excursionToDelete?.name}"? Esta ação não pode ser desfeita.
+          Você tem certeza que deseja excluir o evento "{eventoToDelete?.name}"? Esta ação não pode ser desfeita.
         </p>
         <div className="flex justify-end gap-4">
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>

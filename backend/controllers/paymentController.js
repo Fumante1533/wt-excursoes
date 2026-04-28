@@ -43,13 +43,13 @@ exports.createPreference = async (req, res) => {
       return res.status(503).json({ error: 'Pagamento não configurado no servidor.' });
     }
 
-    const { excursion, ticket, buyerInfo, carInfo, additionalPassengers } = req.body || {};
+    const { evento, ticket, buyerInfo, carInfo, additionalPassengers } = req.body || {};
     const isGuest = !req.user;
     const uid = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` : req.user.uid;
     const tokenEmail = isGuest ? '' : (req.user.email || '').trim().toLowerCase();
 
-    if (!excursion || !ticket) {
-      return res.status(400).json({ error: 'Dados da excursão ou ingresso ausentes.' });
+    if (!evento || !ticket) {
+      return res.status(400).json({ error: 'Dados da evento ou ingresso ausentes.' });
     }
 
     if (!isGuest && tokenEmail && buyerInfo && buyerInfo.email) {
@@ -60,12 +60,12 @@ exports.createPreference = async (req, res) => {
     }
 
     const db = admin.firestore();
-    const excursionRef = await db.collection('excursions').doc(String(excursion.id)).get();
-    if (!excursionRef.exists) return res.status(400).json({ error: 'Excursão não encontrada.' });
+    const eventoRef = await db.collection('eventos').doc(String(evento.id)).get();
+    if (!eventoRef.exists) return res.status(400).json({ error: 'Evento não encontrada.' });
 
-    const excursionData = excursionRef.data();
-    const realTicketIndex = excursionData.tickets.findIndex((t) => t.type === ticket.type);
-    const realTicket = realTicketIndex >= 0 ? excursionData.tickets[realTicketIndex] : null;
+    const eventoData = eventoRef.data();
+    const realTicketIndex = eventoData.tickets.findIndex((t) => t.type === ticket.type);
+    const realTicket = realTicketIndex >= 0 ? eventoData.tickets[realTicketIndex] : null;
     if (!realTicket) return res.status(400).json({ error: 'Tipo de ingresso inválido.' });
 
     // Verificar disponibilidade do lote
@@ -73,7 +73,7 @@ exports.createPreference = async (req, res) => {
     // Calcular quantos ingressos no total
     const totalQtyDemanded = 1 + (Array.isArray(additionalPassengers) ? additionalPassengers.length : 0);
     if (qty > 0) {
-      const soldCounts = excursionData.ticketSoldCounts || {};
+      const soldCounts = eventoData.ticketSoldCounts || {};
       const sold = Number(soldCounts[String(realTicketIndex)] || 0);
       if (sold + totalQtyDemanded > qty) {
         return res.status(400).json({ error: `Vagas insuficientes no lote "${ticket.type}". Restam ${Math.max(0, qty - sold)}.` });
@@ -96,10 +96,10 @@ exports.createPreference = async (req, res) => {
     const body = {
       items: [
         {
-          id: String(excursion.id),
-          title: `${excursionData.name} (${ticket.type})`,
-          description: excursionData.location || "Evento",
-          picture_url: excursionData.image || undefined,
+          id: String(evento.id),
+          title: `${eventoData.name} (${ticket.type})`,
+          description: eventoData.location || "Evento",
+          picture_url: eventoData.image || undefined,
           quantity: totalQtyDemanded,
           currency_id: 'BRL',
           unit_price: Number(realPrice),
@@ -118,7 +118,7 @@ exports.createPreference = async (req, res) => {
       metadata: {
         user_id: uid,
         is_guest: String(isGuest),
-        excursion_id: String(excursion.id),
+        evento_id: String(evento.id),
         ticket_type: ticket.type,
         car_info: JSON.stringify(carInfo || {}),
         additional_passengers: additionalPassengers ? JSON.stringify(additionalPassengers).substring(0, 450) : "[]",
@@ -131,8 +131,8 @@ exports.createPreference = async (req, res) => {
       // Salva o pedido como PENDENTE para rastreio de Carrinho Abandonado
       const orderRef = db.collection('users').doc(uid).collection('orders').doc(String(response.id));
       await orderRef.set({
-        excursionId: excursion.id,
-        excursionName: excursionData.name,
+        eventoId: evento.id,
+        eventoName: eventoData.name,
         ticketType: ticket.type,
         price: Number(realPrice) * totalQtyDemanded,
         status: 'Pendente',
@@ -188,7 +188,7 @@ exports.receiveWebhook = async (req, res) => {
     if (orderData && (orderData.status === 'approved' || orderData.status === 'paid')) {
       const { metadata } = orderData;
       const userId = metadata && metadata.user_id;
-      const excursionId = metadata && metadata.excursion_id;
+      const eventoId = metadata && metadata.evento_id;
       const ticketType = metadata && metadata.ticket_type;
       let carInfo = {};
       let additionalPassengers = [];
@@ -211,13 +211,13 @@ exports.receiveWebhook = async (req, res) => {
 
       // Salva o ingresso principal
       const ticketCodeMain = generateTicketCode();
-      const excursionNameStr = orderData.additional_info?.items?.[0]?.title?.split(' (')[0] || '';
+      const eventoNameStr = orderData.additional_info?.items?.[0]?.title?.split(' (')[0] || '';
       
       const batch = db.batch();
       
       batch.set(orderRef, {
-        excursionId: excursionId,
-        excursionName: excursionNameStr,
+        eventoId: eventoId,
+        eventoName: eventoNameStr,
         ticketType: ticketType,
         price: Number(orderData.transaction_amount || 0),
         status: 'Pago',
@@ -240,8 +240,8 @@ exports.receiveWebhook = async (req, res) => {
           const extraCode = generateTicketCode();
           const extraRef = db.collection('users').doc(userId).collection('orders').doc(`${orderData.id}_${idx + 1}`);
           batch.set(extraRef, {
-            excursionId: excursionId,
-            excursionName: excursionNameStr,
+            eventoId: eventoId,
+            eventoName: eventoNameStr,
             ticketType: ticketType,
             price: 0, // o total já foi pago no principal
             status: 'Pago',
@@ -269,37 +269,37 @@ exports.receiveWebhook = async (req, res) => {
 
       // Envia os emails de forma assíncrona
       if (orderData.payer?.email) {
-        sendTicketEmail(orderData.payer.email, orderData.payer.first_name || 'Comprador', excursionNameStr, ticketCodeMain);
+        sendTicketEmail(orderData.payer.email, orderData.payer.first_name || 'Comprador', eventoNameStr, ticketCodeMain);
       }
       if (Array.isArray(additionalPassengers)) {
         additionalPassengers.forEach((passenger, idx) => {
           if (passenger.email) {
-            sendTicketEmail(passenger.email, passenger.fullName || 'Acompanhante', excursionNameStr, `${orderData.id}_${idx + 1}`);
+            sendTicketEmail(passenger.email, passenger.fullName || 'Acompanhante', eventoNameStr, `${orderData.id}_${idx + 1}`);
           }
         });
       }
 
-          if (excursionId) {
-            const excursionRef = db.collection('excursions').doc(String(excursionId));
-            const excursionSnap = await excursionRef.get();
+          if (eventoId) {
+            const eventoRef = db.collection('eventos').doc(String(eventoId));
+            const eventoSnap = await eventoRef.get();
             const totalTicketsBought = 1 + additionalPassengers.length;
             const updateData = { bookedSlots: admin.firestore.FieldValue.increment(totalTicketsBought) };
 
             // Incrementar contagem do lote vendido
-            if (excursionSnap.exists && ticketType) {
-              const excursionData = excursionSnap.data();
-              const ticketIndex = (excursionData.tickets || []).findIndex((t) => t.type === ticketType);
+            if (eventoSnap.exists && ticketType) {
+              const eventoData = eventoSnap.data();
+              const ticketIndex = (eventoData.tickets || []).findIndex((t) => t.type === ticketType);
               if (ticketIndex >= 0) {
-                const currentSoldCount = (excursionData.ticketSoldCounts || {})[String(ticketIndex)] || 0;
+                const currentSoldCount = (eventoData.ticketSoldCounts || {})[String(ticketIndex)] || 0;
                 const newSoldCounts = {
-                  ...(excursionData.ticketSoldCounts || {}),
+                  ...(eventoData.ticketSoldCounts || {}),
                   [String(ticketIndex)]: Number(currentSoldCount) + totalTicketsBought,
                 };
                 updateData.ticketSoldCounts = newSoldCounts;
               }
             }
 
-            await excursionRef.update(updateData);
+            await eventoRef.update(updateData);
           }
     }
   } catch (error) {
@@ -342,7 +342,7 @@ exports.validateTicket = async (req, res) => {
     if (!isAdminRequest(req.user)) {
       return res.status(403).json({ error: `Acesso restrito a administradores. (Sua conta: ${req.user ? req.user.email : 'Nenhuma'})` });
     }
-    const { ticketCode, excursionId } = req.body || {};
+    const { ticketCode, eventoId } = req.body || {};
     const normalized = normalizeTicketCode(ticketCode);
     if (!normalized) {
       return res.status(400).json({ error: 'ticketCode é obrigatório.' });
@@ -350,8 +350,8 @@ exports.validateTicket = async (req, res) => {
 
     const db = admin.firestore();
     let q = db.collectionGroup('orders').where('ticket.code', '==', normalized).limit(1);
-    if (excursionId) {
-      q = q.where('excursionId', '==', String(excursionId));
+    if (eventoId) {
+      q = q.where('eventoId', '==', String(eventoId));
     }
     const snap = await q.get();
     if (snap.empty) {
@@ -384,7 +384,7 @@ exports.validateTicket = async (req, res) => {
     return res.json({
       ok: true,
       orderId: docSnap.id,
-      excursionName: data.excursionName || '',
+      eventoName: data.eventoName || '',
       buyerName: data.buyerName || data.buyerInfo?.fullName || '',
       ticketCode: normalized,
     });

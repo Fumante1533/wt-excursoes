@@ -48,13 +48,13 @@ exports.createCheckoutSession = async (req, res) => {
     const line_items = [];
 
     for (const item of cart) {
-      const excursionRef = await db.collection('excursions').doc(String(item.excursion.id)).get();
-      if (!excursionRef.exists) {
-        return res.status(400).json({ error: `Evento ${item.excursion.id} não encontrado.` });
+      const eventoRef = await db.collection('eventos').doc(String(item.evento.id)).get();
+      if (!eventoRef.exists) {
+        return res.status(400).json({ error: `Evento ${item.evento.id} não encontrado.` });
       }
 
-      const excursionData = excursionRef.data();
-      const realTicket = excursionData.tickets.find((t) => t.type === item.ticket.type);
+      const eventoData = eventoRef.data();
+      const realTicket = eventoData.tickets.find((t) => t.type === item.ticket.type);
 
       if (!realTicket) {
         return res.status(400).json({ error: `Ingresso do tipo ${item.ticket.type} inválido.` });
@@ -68,8 +68,8 @@ exports.createCheckoutSession = async (req, res) => {
         price_data: {
           currency: 'brl',
           product_data: {
-            name: `${excursionData.name} - ${item.ticket.type}`,
-            ...(isValidUrl(excursionData.image) && { images: [excursionData.image] }),
+            name: `${eventoData.name} - ${item.ticket.type}`,
+            ...(isValidUrl(eventoData.image) && { images: [eventoData.image] }),
           },
           unit_amount: Math.round(realPrice * 100),
         },
@@ -102,7 +102,7 @@ exports.createCheckoutSession = async (req, res) => {
         userId: uid,
         cart: JSON.stringify(
           cart.map((item) => ({
-            excursionId: item.excursion.id,
+            eventoId: item.evento.id,
             ticketType: item.ticket.type,
             quantity: Math.min(Math.max(parseInt(item.quantity, 10) || 1, 1), 100),
           }))
@@ -170,10 +170,10 @@ exports.handleWebhook = async (req, res) => {
         const orderRef = db.collection('users').doc(userId).collection('orders').doc(session.id);
         const existing = await orderRef.get();
         if (!existing.exists) {
-          const excursionSnapshots = await Promise.all(
-            cart.map((item) => db.collection('excursions').doc(String(item.excursionId)).get())
+          const eventoSnapshots = await Promise.all(
+            cart.map((item) => db.collection('eventos').doc(String(item.eventoId)).get())
           );
-          const excursionsData = excursionSnapshots.map((snap) => snap.data());
+          const eventosData = eventoSnapshots.map((snap) => snap.data());
 
           await orderRef.set({
             id: session.id,
@@ -184,12 +184,12 @@ exports.handleWebhook = async (req, res) => {
             carInfo: carInfo || {},
             items: cart.map((item, index) => ({
               ...item,
-              excursionName: excursionsData[index]?.name || 'Excursão Desconhecida',
-              excursionDate: excursionsData[index]?.date || null,
+              eventoName: eventosData[index]?.name || 'Evento Desconhecida',
+              eventoDate: eventosData[index]?.date || null,
             })),
-            excursionId: cart[0]?.excursionId || null,
-            excursionName: excursionsData[0]?.name || 'Excursão Desconhecida',
-            excursionDate: excursionsData[0]?.date || null,
+            eventoId: cart[0]?.eventoId || null,
+            eventoName: eventosData[0]?.name || 'Evento Desconhecida',
+            eventoDate: eventosData[0]?.date || null,
             ticketType: cart[0]?.ticketType || '',
             totalPrice: session.amount_total / 100,
             status: 'Pago',
@@ -205,8 +205,8 @@ exports.handleWebhook = async (req, res) => {
 
           const batch = db.batch();
           cart.forEach((item) => {
-            const excursionRef = db.collection('excursions').doc(String(item.excursionId));
-            batch.update(excursionRef, {
+            const eventoRef = db.collection('eventos').doc(String(item.eventoId));
+            batch.update(eventoRef, {
               bookedSlots: admin.firestore.FieldValue.increment(item.quantity || 1),
             });
           });

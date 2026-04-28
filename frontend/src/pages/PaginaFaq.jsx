@@ -41,7 +41,7 @@ const PaginaFaq = ({ faqs }) => {
         <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pt-32 pb-16">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <h1 className="text-4xl md:text-5xl font-bold text-center text-zinc-800 dark:text-white mb-4">Perguntas Frequentes</h1>
-                <p className="text-lg text-center text-zinc-600 dark:text-zinc-300 mb-12">Tire suas dúvidas sobre nossas viagens.</p>
+                <p className="text-lg text-center text-zinc-600 dark:text-zinc-300 mb-12">Tire suas dúvidas sobre nossas encontros.</p>
                 <div className="relative mb-8">
                     <input
                         type="text"

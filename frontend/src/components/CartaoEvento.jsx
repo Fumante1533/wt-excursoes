@@ -33,7 +33,7 @@ export const CartaoEvento = ({ event, onNavigate, index = 0, user, db }) => {
               {event.tag}
             </span>
           )}
-          {user && db && <WishlistButton userId={user.uid} excursionId={event.id} db={db} />}
+          {user && db && <WishlistButton userId={user.uid} eventoId={event.id} db={db} />}
         </div>
         <div className="p-6 flex-grow flex flex-col bg-white dark:bg-zinc-900">
           <p className="text-sm font-semibold text-yellow-500 dark:text-yellow-400 mb-1">

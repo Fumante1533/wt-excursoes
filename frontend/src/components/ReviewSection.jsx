@@ -27,14 +27,14 @@ const StarRating = ({ rating, setRating }) => (
 );
 
 
-const ReviewSection = ({ excursionId, user, db }) => {
+const ReviewSection = ({ eventoId, user, db }) => {
     const [reviews, setReviews] = useState([]);
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const reviewsQuery = query(collection(db, 'reviews'), where('excursionId', '==', excursionId));
+        const reviewsQuery = query(collection(db, 'reviews'), where('eventoId', '==', eventoId));
         const unsubscribe = onSnapshot(reviewsQuery, (snapshot) => {
             const rawReviews = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             rawReviews.sort((a, b) => {
@@ -45,7 +45,7 @@ const ReviewSection = ({ excursionId, user, db }) => {
             setReviews(rawReviews);
         });
         return unsubscribe;
-    }, [excursionId, db]);
+    }, [eventoId, db]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -60,7 +60,7 @@ const ReviewSection = ({ excursionId, user, db }) => {
 
         try {
             await addDoc(collection(db, 'reviews'), {
-                excursionId,
+                eventoId,
                 userId: user.uid,
                 userName: user.displayName,
                 rating,

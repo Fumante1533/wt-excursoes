@@ -20,7 +20,7 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
-    match /excursions/{fileName} {
+    match /eventos/{fileName} {
       allow read: if true;
       allow write: if isAdmin()
         && request.resource.size < 15 * 1024 * 1024

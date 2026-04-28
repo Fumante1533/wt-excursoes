@@ -61,7 +61,7 @@ const CouponManagement = ({ db }) => {
         <div>
             <h2 className="text-3xl font-bold text-white mb-6">Gerenciar Cupons</h2>
             <form onSubmit={handleAddCoupon} className="bg-zinc-800 p-6 rounded-lg mb-8 flex gap-4 items-end">
-                <input value={code} onChange={e => setCode(e.target.value)} placeholder="Código (ex: VIAGEM10)" className="bg-zinc-700 text-white p-2 rounded"/>
+                <input value={code} onChange={e => setCode(e.target.value)} placeholder="Código (ex: ENCONTRO10)" className="bg-zinc-700 text-white p-2 rounded"/>
                 <select value={type} onChange={e => setType(e.target.value)} className="bg-zinc-700 text-white p-2 rounded">
                     <option value="percentage">Porcentagem (%)</option>
                     <option value="fixed">Valor Fixo (R$)</option>

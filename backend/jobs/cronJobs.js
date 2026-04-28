@@ -103,9 +103,9 @@ const initCronJobs = () => {
       const tomorrowStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
       const tomorrowEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
       
-      const excursionsSnap = await db.collection('excursions').get();
+      const eventosSnap = await db.collection('eventos').get();
       
-      const upcomingEvents = excursionsSnap.docs.filter(doc => {
+      const upcomingEvents = eventosSnap.docs.filter(doc => {
         const data = doc.data();
         if (!data.date) return false;
         const eventDate = new Date(data.date);
@@ -123,7 +123,7 @@ const initCronJobs = () => {
       
       const ordersToRemind = ordersSnap.docs.filter(doc => {
         const data = doc.data();
-        return eventIds.includes(String(data.excursionId)) && data.status === 'Pago' && !data.reminderSent;
+        return eventIds.includes(String(data.eventoId)) && data.status === 'Pago' && !data.reminderSent;
       });
 
       console.log(`Encontrados ${ordersToRemind.length} ingressos para enviar lembrete.`);
@@ -134,7 +134,7 @@ const initCronJobs = () => {
         await sendReminderEmail(
           data.buyerEmail, 
           data.buyerName || 'Participante', 
-          data.excursionName || 'Evento Itajobi', 
+          data.eventoName || 'Evento Itajobi', 
           data.ticket?.code || 'N/A'
         );
         batch.update(orderDoc.ref, { reminderSent: true });
@@ -159,9 +159,9 @@ const initCronJobs = () => {
       const yesterdayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
       const yesterdayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       
-      const excursionsSnap = await db.collection('excursions').get();
+      const eventosSnap = await db.collection('eventos').get();
       
-      const pastEvents = excursionsSnap.docs.filter(doc => {
+      const pastEvents = eventosSnap.docs.filter(doc => {
         const data = doc.data();
         if (!data.date) return false;
         const eventDate = new Date(data.date);
@@ -179,7 +179,7 @@ const initCronJobs = () => {
       
       const ordersToNPS = ordersSnap.docs.filter(doc => {
         const data = doc.data();
-        return eventIds.includes(String(data.excursionId)) && data.status === 'Pago' && !data.npsSent;
+        return eventIds.includes(String(data.eventoId)) && data.status === 'Pago' && !data.npsSent;
       });
 
       console.log(`Encontrados ${ordersToNPS.length} participantes para enviar NPS.`);
@@ -191,7 +191,7 @@ const initCronJobs = () => {
           await sendNPSEmail(
             data.buyerEmail, 
             data.buyerName || 'Participante', 
-            data.excursionName || 'Evento Itajobi'
+            data.eventoName || 'Evento Itajobi'
           );
         }
         batch.update(orderDoc.ref, { npsSent: true });
@@ -233,7 +233,7 @@ const initCronJobs = () => {
           await sendAbandonedCartEmail(
             data.buyerEmail, 
             data.buyerName || 'Comprador', 
-            data.excursionName || 'Evento Itajobi'
+            data.eventoName || 'Evento Itajobi'
           );
         }
         batch.update(orderDoc.ref, { abandonedCartSent: true });

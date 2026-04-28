@@ -56,17 +56,17 @@ exports.sendConfirmationEmail = functions.firestore
       return null;
     }
 
-    const excursionName = escapeHtml(orderData.excursionName || "");
+    const eventoName = escapeHtml(orderData.eventoName || "");
     const ticketType = escapeHtml(orderData.ticketType || "");
     const priceNum = Number(orderData.price || 0);
     const priceStr = escapeHtml(Number.isFinite(priceNum) ? priceNum.toFixed(2) : "0.00");
 
     let dateStr = "";
     try {
-      if (orderData.excursionDate) {
-        const d = orderData.excursionDate.toDate
-          ? orderData.excursionDate.toDate()
-          : new Date(orderData.excursionDate);
+      if (orderData.eventoDate) {
+        const d = orderData.eventoDate.toDate
+          ? orderData.eventoDate.toDate()
+          : new Date(orderData.eventoDate);
         dateStr = escapeHtml(d.toLocaleDateString("pt-BR"));
       }
     } catch (e) {
@@ -75,24 +75,24 @@ exports.sendConfirmationEmail = functions.firestore
 
     const msg = {
       to: userEmail,
-      from: "contato@wtexcursoes.com",
+      from: "itacars237@admin.com",
       subject: "Sua próxima aventura está confirmada!",
       html: `
                 <h1>Olá, ${escapeHtml(userName || "Aventureiro(a)")}!</h1>
-                <p>Obrigado por comprar conosco. Sua excursão está confirmada!</p>
+                <p>Obrigado por comprar conosco. Sua evento está confirmada!</p>
                 <h2>Detalhes do Pedido:</h2>
                 <ul>
-                    <li><strong>Excursão:</strong> ${excursionName}</li>
+                    <li><strong>Evento:</strong> ${eventoName}</li>
                     <li><strong>Ingresso:</strong> ${ticketType}</li>
                     ${
                       dateStr
-                        ? `<li><strong>Data da Viagem:</strong> ${dateStr}</li>`
+                        ? `<li><strong>Data da Encontro:</strong> ${dateStr}</li>`
                         : ""
                     }
                     <li><strong>Valor Pago:</strong> R$ ${priceStr}</li>
                 </ul>
                 <p>Mal podemos esperar para viajar com você!</p>
-                <p>Atenciosamente,<br>Equipe WT Excursões</p>
+                <p>Atenciosamente,<br>Equipe WT Eventos</p>
             `,
     };
 

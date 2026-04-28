@@ -10,7 +10,7 @@ const IMPORT_ROOT = path.resolve(
   process.env.IMPORT_DATA_DIR || path.join(__dirname, '..', 'data', 'imports')
 );
 
-// POST /api/import-excursions
+// POST /api/import-eventos
 // Segurança: X-Import-Secret (IMPORT_INTERNAL_SECRET) OU Bearer token de admin Firebase.
 // Body: { fileName: string, dryRun?: boolean }
 // O arquivo deve existir dentro de IMPORT_ROOT (padrão: backend/data/imports).

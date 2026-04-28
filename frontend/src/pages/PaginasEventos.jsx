@@ -19,22 +19,22 @@ import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrim
 import { CartaoEvento, EsqueletoCartaoEvento } from "../components/CartaoEvento";
 import { callGeminiAPI } from "../services/geminiMockService";
 
-export function PaginaListaEventos({ onNavigate, excursions, user, db }) {
+export function PaginaListaEventos({ onNavigate, eventos, user, db }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("Todos");
   const [filterDate, setFilterDate] = useState("");
-  const [filteredExcursions, setFilteredExcursions] = useState([]);
+  const [filteredEventos, setFilteredEventos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const upcomingEvents = excursions.filter((e) => new Date(e.date) >= new Date());
+  const upcomingEvents = eventos.filter((e) => new Date(e.date) >= new Date());
   const categories = ["Todos", ...new Set(upcomingEvents.map((e) => e.category))];
   useEffect(() => {
     setTimeout(() => {
-      setFilteredExcursions(upcomingEvents);
+      setFilteredEventos(upcomingEvents);
       setLoading(false);
     }, 1000);
-  }, [excursions]);
+  }, [eventos]);
   useEffect(() => {
-    let results = excursions.filter(
+    let results = eventos.filter(
       (ex) =>
         ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ex.location.toLowerCase().includes(searchTerm.toLowerCase())
@@ -45,8 +45,8 @@ export function PaginaListaEventos({ onNavigate, excursions, user, db }) {
     if (filterDate) {
       results = results.filter((ex) => ex.date === filterDate);
     }
-    setFilteredExcursions(results);
-  }, [searchTerm, filterCategory, excursions, filterDate]);
+    setFilteredEventos(results);
+  }, [searchTerm, filterCategory, eventos, filterDate]);
   return (
     <PageWrapper>
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pt-32 pb-16">
@@ -83,8 +83,8 @@ export function PaginaListaEventos({ onNavigate, excursions, user, db }) {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => <EsqueletoCartaoEvento key={i} />)
-            ) : filteredExcursions.length > 0 ? (
-              filteredExcursions.map((ex, i) => (
+            ) : filteredEventos.length > 0 ? (
+              filteredEventos.map((ex, i) => (
                 <CartaoEvento key={ex.id} event={ex} onNavigate={onNavigate} index={i} user={user} db={db} />
               ))
             ) : (
@@ -100,17 +100,17 @@ export function PaginaListaEventos({ onNavigate, excursions, user, db }) {
   );
 }
 
-export function PaginaEventosPassados({ onNavigate, excursions, user, db }) {
+export function PaginaEventosPassados({ onNavigate, eventos, user, db }) {
   const [pastEvents, setPastEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const filtered = excursions
+    const filtered = eventos
       .filter((e) => new Date(e.date) < new Date())
       .sort((a, b) => new Date(b.date) - new Date(a.date));
     setPastEvents(filtered);
     setLoading(false);
-  }, [excursions]);
+  }, [eventos]);
 
   return (
     <PageWrapper>
@@ -142,14 +142,14 @@ export function PaginaEventosPassados({ onNavigate, excursions, user, db }) {
   );
 }
 
-export function PaginaCentralEventos({ onNavigate, excursions, user, db }) {
+export function PaginaCentralEventos({ onNavigate, eventos, user, db }) {
   const [activeTab, setActiveTab] = useState("upcoming");
 
-  const upcomingEvents = excursions
+  const upcomingEvents = eventos
     .filter((e) => new Date(e.date) >= new Date())
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const pastEvents = excursions
+  const pastEvents = eventos
     .filter((e) => new Date(e.date) < new Date())
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -243,7 +243,7 @@ function ModalGaleria({ isOpen, onClose, imageUrl }) {
   );
 }
 
-function AssistenteIaPreparacao({ excursionName }) {
+function AssistenteIaPreparacao({ eventoName }) {
   const [interests, setInterests] = useState("");
   const [itinerary, setItinerary] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -254,7 +254,7 @@ function AssistenteIaPreparacao({ excursionName }) {
     }
     setIsLoading(true);
     setItinerary("");
-    const prompt = `Sugestões de preparação para o evento "${excursionName}" com foco em: ${interests}.`;
+    const prompt = `Sugestões de preparação para o evento "${eventoName}" com foco em: ${interests}.`;
     const result = await callGeminiAPI(prompt);
     setItinerary(result);
     setIsLoading(false);
@@ -325,8 +325,8 @@ function AssistenteIaPreparacao({ excursionName }) {
   );
 }
 
-export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
-  const [activeImage, setActiveImage] = useState(excursion.image);
+export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
+  const [activeImage, setActiveImage] = useState(evento.image);
   const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
   const [selectedGalleryImage, setSelectedGalleryImage] = useState(null);
 
@@ -335,7 +335,7 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
     setIsGalleryModalOpen(true);
   };
 
-  const remainingSlots = excursion.totalSlots ? excursion.totalSlots - (excursion.bookedSlots || 0) : null;
+  const remainingSlots = evento.totalSlots ? evento.totalSlots - (evento.bookedSlots || 0) : null;
   return (
     <PageWrapper>
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pt-32 pb-16">
@@ -344,7 +344,7 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
             <div className="grid md:grid-cols-5 md:gap-8">
               <div className="md:col-span-3">
                 <motion.div
-                  layoutId={`excursion-image-${excursion.id}`}
+                  layoutId={`evento-image-${evento.id}`}
                   className="overflow-hidden rounded-t-2xl md:rounded-l-2xl md:rounded-t-none"
                 >
                   <AnimatePresence mode="wait">
@@ -355,13 +355,13 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
                       src={activeImage}
-                      alt={excursion.name}
+                      alt={evento.name}
                       className="w-full h-96 object-cover"
                     />
                   </AnimatePresence>
                 </motion.div>
                 <div className="p-4 flex space-x-2 bg-zinc-50 dark:bg-zinc-800/50 md:rounded-bl-2xl">
-                  {excursion.images?.map((img, i) => (
+                  {evento.images?.map((img, i) => (
                     <img
                       key={i}
                       src={img}
@@ -377,18 +377,18 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
                 </div>
               </div>
               <div className="p-8 flex flex-col md:col-span-2">
-                <h1 className="text-3xl font-bold text-zinc-800 dark:text-white mb-4">{excursion.name}</h1>
+                <h1 className="text-3xl font-bold text-zinc-800 dark:text-white mb-4">{evento.name}</h1>
                 <div className="flex flex-wrap items-center text-zinc-500 dark:text-zinc-400 mb-4 gap-y-2">
-                  <span className="flex items-center whitespace-nowrap"><MapPin size={18} className="mr-2 text-yellow-500" /> {excursion.location}</span>
+                  <span className="flex items-center whitespace-nowrap"><MapPin size={18} className="mr-2 text-yellow-500" /> {evento.location}</span>
                   <span className="flex items-center whitespace-nowrap"><Calendar size={18} className="ml-6 mr-2 text-yellow-500" />{" "}
-                  {new Date(excursion.date).toLocaleDateString("pt-BR", {
+                  {new Date(evento.date).toLocaleDateString("pt-BR", {
                     timeZone: "UTC",
                   })}</span>
-                  {excursion.time && (
-                    <span className="flex items-center whitespace-nowrap"><Clock size={18} className="ml-6 mr-2 text-yellow-500" /> {excursion.time} {excursion.timeEnd && `às ${excursion.timeEnd}`}</span>
+                  {evento.time && (
+                    <span className="flex items-center whitespace-nowrap"><Clock size={18} className="ml-6 mr-2 text-yellow-500" /> {evento.time} {evento.timeEnd && `às ${evento.timeEnd}`}</span>
                   )}
                 </div>
-                <p className="text-zinc-600 dark:text-zinc-300 mb-8 flex-grow">{excursion.description}</p>
+                <p className="text-zinc-600 dark:text-zinc-300 mb-8 flex-grow">{evento.description}</p>
                 {remainingSlots !== null && (
                   <div className="mb-6 p-3 bg-blue-50 dark:bg-zinc-800 rounded-lg text-center">
                     <p className="font-bold text-blue-600 dark:text-blue-400">
@@ -397,12 +397,12 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
                   </div>
                 )}
 
-                {new Date(excursion.date) >= new Date() ? (
+                {new Date(evento.date) >= new Date() ? (
                   <div className="mt-auto">
                     <h2 className="text-2xl font-bold text-zinc-700 dark:text-white mb-4">Tipos de Inscrição</h2>
                     <div className="space-y-4">
-                      {excursion.tickets.map((ticket, index) => {
-                        const sold = excursion.ticketSoldCounts?.[String(index)] || 0;
+                      {evento.tickets.map((ticket, index) => {
+                        const sold = evento.ticketSoldCounts?.[String(index)] || 0;
                         const qty = ticket.quantity || 0;
                         const isSoldOut = qty > 0 && sold >= qty;
                         const remaining = qty > 0 ? qty - sold : null;
@@ -431,7 +431,7 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
                             <Button
                               onClick={() => {
                                 if (typeof onNavigate.onAddToCart === "function") {
-                                  onNavigate.onAddToCart(excursion, ticket);
+                                  onNavigate.onAddToCart(evento, ticket);
                                 }
                               }}
                               disabled={isSoldOut || typeof onNavigate.onAddToCart !== "function"}
@@ -458,12 +458,12 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
             <Card className="p-8">
               <h3 className="text-2xl font-bold mb-4 text-zinc-800 dark:text-white">O que está incluso?</h3>
               <ul className="space-y-2">
-                {excursion.included?.map((item, i) => (
+                {evento.included?.map((item, i) => (
                   <li key={i} className="flex items-center text-zinc-600 dark:text-zinc-300">
                     <CheckCircle size={18} className="text-green-500 mr-3" /> {item}
                   </li>
                 ))}
-                {excursion.notIncluded?.map((item, i) => (
+                {evento.notIncluded?.map((item, i) => (
                   <li key={i} className="flex items-center text-zinc-600 dark:text-zinc-300">
                     <XCircle size={18} className="text-red-500 mr-3" /> {item}
                   </li>
@@ -471,13 +471,13 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
               </ul>
             </Card>
 
-            {new Date(excursion.date) < new Date() &&
-              excursion.galleryImages &&
-              excursion.galleryImages.length > 0 && (
+            {new Date(evento.date) < new Date() &&
+              evento.galleryImages &&
+              evento.galleryImages.length > 0 && (
                 <Card className="p-8 md:col-span-2">
                   <h3 className="text-2xl font-bold mb-4 text-zinc-800 dark:text-white">Galeria de Fotos do Evento</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    {excursion.galleryImages.map((imgUrl, index) => (
+                    {evento.galleryImages.map((imgUrl, index) => (
                       <motion.div
                         key={index}
                         className="aspect-square rounded-lg overflow-hidden cursor-pointer group"
@@ -486,7 +486,7 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
                       >
                         <img
                           src={imgUrl}
-                          alt={`Foto ${index + 1} do evento ${excursion.name}`}
+                          alt={`Foto ${index + 1} do evento ${evento.name}`}
                           className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
                         />
                       </motion.div>
@@ -520,9 +520,9 @@ export function PaginaDetalheEvento({ onNavigate, excursion, user, db }) {
                 </div>
               </div>
             </Card>
-            <ReviewSection excursionId={excursion.id} user={user} db={db} />
+            <ReviewSection eventoId={evento.id} user={user} db={db} />
           </div>
-          <AssistenteIaPreparacao excursionName={excursion.name} />
+          <AssistenteIaPreparacao eventoName={evento.name} />
           <div className="text-center mt-12">
             <Button onClick={() => onNavigate("events")} variant="secondary">
               Voltar para todos os eventos

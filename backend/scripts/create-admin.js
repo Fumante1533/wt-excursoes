@@ -17,7 +17,7 @@ function parseArgs() {
 
 async function main() {
   const opts = parseArgs();
-  const email = opts.email || process.env.ADMIN_EMAIL || 'admin@wtexcursoes.com';
+  const email = opts.email || process.env.ADMIN_EMAIL || 'itacars237@admin.com';
   const password = opts.password || process.env.ADMIN_PASSWORD;
   const displayName = opts.displayName || 'Administrador';
 

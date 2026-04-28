@@ -70,7 +70,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false);
   const [firebaseInitialized, setFirebaseInitialized] = useState(false);
   const [firebaseError, setFirebaseError] = useState(null);
-  const [excursions, setExcursions] = useState(initialEvents);
+  const [eventos, setEventos] = useState(initialEvents);
   const [darkMode, setDarkMode] = useState(true);
   const [blogPosts, setBlogPosts] = useState(initialBlogPosts);
   const [faqs, setFaqs] = useState(initialFaqs);
@@ -222,7 +222,7 @@ export default function App() {
         setPage("home");
         return;
       }
-      if (currentPath.startsWith("/excursions/")) {
+      if (currentPath.startsWith("/eventos/")) {
         const parts = currentPath.split("/").filter(Boolean);
         const id = parts[1];
         setPageData({ eventId: isNaN(Number(id)) ? id : Number(id) });
@@ -246,8 +246,8 @@ export default function App() {
         return;
       }
 
-      if (currentPath === "/excursions") {
-        setPage("excursions");
+      if (currentPath === "/eventos") {
+        setPage("eventos");
         return;
       }
       if (currentPath.startsWith("/blog/")) {
@@ -277,15 +277,15 @@ export default function App() {
     useEffect(() => {
         if (!firebaseInitialized || !db) return;
 
-    const excursionsRef = collection(db, "excursions");
+    const eventosRef = collection(db, "eventos");
     const blogRef = collection(db, "blogPosts");
     const faqsRef = collection(db, "faqs");
 
-    const unsubscribeExcursions = onSnapshot(excursionsRef, (snapshot) => {
+    const unsubscribeEventos = onSnapshot(eventosRef, (snapshot) => {
       // Se o Firestore estiver vazio (fresh project), mantemos os exemplos locais.
       if (snapshot.empty) return;
-      const excursionsData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setExcursions(excursionsData);
+      const eventosData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setEventos(eventosData);
     });
 
     const unsubscribeBlog = onSnapshot(query(blogRef, orderBy("createdAt", "desc")), (snapshot) => {
@@ -301,14 +301,14 @@ export default function App() {
     });
 
         return () => {
-          unsubscribeExcursions();
+          unsubscribeEventos();
           unsubscribeBlog();
           unsubscribeFaqs();
         };
     }, [firebaseInitialized]);
 
   useEffect(() => {
-    setExcursions(initialEvents);
+    setEventos(initialEvents);
   }, []);
 
   useEffect(() => {
@@ -353,7 +353,7 @@ export default function App() {
     if (newPage === "adminLogin" || newPage === "adminDashboard") {
       path = "/admin";
     } else if (newPage === "eventDetail") {
-      path = `/excursions/${data.eventId}`;
+      path = `/eventos/${data.eventId}`;
     } else if (newPage !== "home") {
       path = `/${newPage}`;
     }
@@ -370,9 +370,9 @@ export default function App() {
     setPage(newPage);
   };
 
-  const handleAddToCart = (excursion, ticket) => {
+  const handleAddToCart = (evento, ticket) => {
     setCart((prevCart) => {
-        const cartItemId = `${excursion.id}-${ticket.type}`;
+        const cartItemId = `${evento.id}-${ticket.type}`;
       const existingItem = prevCart.find((item) => item.id === cartItemId);
 
         if (existingItem) {
@@ -380,9 +380,9 @@ export default function App() {
                 item.id === cartItemId ? { ...item, quantity: item.quantity + 1 } : item
             );
         }
-      return [...prevCart, { id: cartItemId, excursion, ticket, quantity: 1 }];
+      return [...prevCart, { id: cartItemId, evento, ticket, quantity: 1 }];
     });
-    toast.success(`${ticket.type} para ${excursion.name} adicionado ao carrinho!`);
+    toast.success(`${ticket.type} para ${evento.name} adicionado ao carrinho!`);
     setIsCartOpen(true);
   };
 
@@ -418,7 +418,7 @@ export default function App() {
     handleNavigate("home");
   };
 
-const addExcursion = async (newExcursionData) => {
+const addEvento = async (newEventoData) => {
     if (!db) {
         toast.error("Serviço indisponível.");
         return null;
@@ -429,18 +429,18 @@ const addExcursion = async (newExcursionData) => {
     }
 
     try {
-      const excursionsCollectionRef = collection(db, "excursions");
-        const docRef = await addDoc(excursionsCollectionRef, newExcursionData);
-        const finalExcursion = { 
+      const eventosCollectionRef = collection(db, "eventos");
+        const docRef = await addDoc(eventosCollectionRef, newEventoData);
+        const finalEvento = { 
             id: docRef.id, 
-        ...newExcursionData,
+        ...newEventoData,
         };
 
         await setDoc(docRef, { id: docRef.id }, { merge: true });
 
-        toast.success(`Evento "${newExcursionData.name}" criado com sucesso! ID: ${docRef.id}`);
+        toast.success(`Evento "${newEventoData.name}" criado com sucesso! ID: ${docRef.id}`);
 
-        return finalExcursion; 
+        return finalEvento; 
     } catch (error) {
         console.error("Erro ao adicionar evento:", error);
         toast.error("Falha ao criar o evento.");
@@ -448,17 +448,17 @@ const addExcursion = async (newExcursionData) => {
     }
 };
 
-const updateExcursion = async (updatedExcursionData) => {
+const updateEvento = async (updatedEventoData) => {
     if (!isAdminUi) {
         toast.error("Sem permissão de admin.");
         return;
     }
-    const { id, ...data } = updatedExcursionData;
-    const excursionDocRef = doc(db, "excursions", String(id));
-    await setDoc(excursionDocRef, data, { merge: true });
+    const { id, ...data } = updatedEventoData;
+    const eventoDocRef = doc(db, "eventos", String(id));
+    await setDoc(eventoDocRef, data, { merge: true });
 };
 
-const deleteExcursion = async (id) => {
+const deleteEvento = async (id) => {
     if (!isAdminUi) {
         toast.error("Sem permissão de admin.");
         return;
@@ -473,8 +473,8 @@ const deleteExcursion = async (id) => {
     }
     
     try {
-      const excursionDocRef = doc(db, "excursions", stringId);
-        await deleteDoc(excursionDocRef);
+      const eventoDocRef = doc(db, "eventos", stringId);
+        await deleteDoc(eventoDocRef);
         toast.success("Evento excluído!");
     } catch (error) {
         console.error("Erro ao excluir evento:", error);
@@ -524,29 +524,29 @@ const deleteExcursion = async (id) => {
 
     switch (page) {
       case "home":
-        return <PaginaInicial onNavigate={handleNavigate} excursions={excursions} user={user} db={db} />;
-      case "excursions":
+        return <PaginaInicial onNavigate={handleNavigate} eventos={eventos} user={user} db={db} />;
+      case "eventos":
         return (
-          <PaginaListaEventos onNavigate={handleNavigate} excursions={excursions} user={user} db={db} />
+          <PaginaListaEventos onNavigate={handleNavigate} eventos={eventos} user={user} db={db} />
         );
       case "events":
         return (
-          <PaginaListaEventos onNavigate={handleNavigate} excursions={excursions} user={user} db={db} />
+          <PaginaListaEventos onNavigate={handleNavigate} eventos={eventos} user={user} db={db} />
         );
       case "eventsHub":
         return (
-          <PaginaCentralEventos onNavigate={handleNavigate} excursions={excursions} user={user} db={db} />
+          <PaginaCentralEventos onNavigate={handleNavigate} eventos={eventos} user={user} db={db} />
         );
       case "pastEvents":
         return (
-          <PaginaEventosPassados onNavigate={handleNavigate} excursions={excursions} user={user} db={db} />
+          <PaginaEventosPassados onNavigate={handleNavigate} eventos={eventos} user={user} db={db} />
         );
       case "eventDetail": {
-        const excursion = excursions.find((e) => String(e.id) === String(pageData.eventId));
-          return excursion ? (
-          <PaginaDetalheEvento onNavigate={navProps} excursion={excursion} user={user} db={db} />
+        const evento = eventos.find((e) => String(e.id) === String(pageData.eventId));
+          return evento ? (
+          <PaginaDetalheEvento onNavigate={navProps} evento={evento} user={user} db={db} />
         ) : (
-          <PaginaListaEventos onNavigate={handleNavigate} excursions={excursions} user={user} db={db} />
+          <PaginaListaEventos onNavigate={handleNavigate} eventos={eventos} user={user} db={db} />
         );
       }
       case "checkout": {
@@ -554,7 +554,7 @@ const deleteExcursion = async (id) => {
         return cartItems.length > 0 ? (
           <PaginaCheckout cart={cartItems} user={user} />
         ) : (
-          <PaginaListaEventos onNavigate={handleNavigate} excursions={excursions} user={user} db={db} />
+          <PaginaListaEventos onNavigate={handleNavigate} eventos={eventos} user={user} db={db} />
         );
       }
       case "success":
@@ -579,7 +579,7 @@ const deleteExcursion = async (id) => {
         return (
           <PaginaConta
             user={user}
-            excursions={excursions}
+            eventos={eventos}
             onNavigate={handleNavigate}
             db={db}
             initialTab={pageData.initialTab}
@@ -601,10 +601,10 @@ const deleteExcursion = async (id) => {
         return (
           <PainelAdministrativo
             onNavigate={handleNavigate}
-            excursions={excursions}
-            onAddExcursion={addExcursion}
-            onUpdateExcursion={updateExcursion}
-            onDeleteExcursion={deleteExcursion}
+            eventos={eventos}
+            onAddEvento={addEvento}
+            onUpdateEvento={updateEvento}
+            onDeleteEvento={deleteEvento}
             onLogout={handleLogout}
           />
         );
@@ -626,7 +626,7 @@ const deleteExcursion = async (id) => {
       case "faq":
         return <PaginaFaq faqs={faqs} />;
       default:
-        return <PaginaInicial onNavigate={handleNavigate} excursions={excursions} user={user} db={db} />;
+        return <PaginaInicial onNavigate={handleNavigate} eventos={eventos} user={user} db={db} />;
     }
   };
   

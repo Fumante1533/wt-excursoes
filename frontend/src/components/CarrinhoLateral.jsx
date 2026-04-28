@@ -41,9 +41,9 @@ export default function CarrinhoLateral({ isOpen, onClose, cart, onUpdateQuantit
               <div className="flex-grow overflow-y-auto p-6 space-y-4">
                 {cart.map((item) => (
                   <div key={item.id} className="flex gap-4">
-                    <img src={item.excursion.image} alt={item.excursion.name} className="w-24 h-24 object-cover rounded-lg" />
+                    <img src={item.evento.image} alt={item.evento.name} className="w-24 h-24 object-cover rounded-lg" />
                     <div className="flex-grow">
-                      <p className="font-bold">{item.excursion.name}</p>
+                      <p className="font-bold">{item.evento.name}</p>
                       <p className="text-sm text-zinc-500">{item.ticket.type}</p>
                       <p className="font-semibold text-yellow-500">R$ {item.ticket.price.toFixed(2)}</p>
                       <div className="flex items-center gap-2 mt-2">

@@ -4,11 +4,11 @@ const { generateTicketCode } = require('../utils/ticketUtils');
 
 exports.createPayment = async (req, res) => {
   try {
-    const { excursion, ticket, buyerInfo, carInfo } = req.body || {};
+    const { evento, ticket, buyerInfo, carInfo } = req.body || {};
     const uid = req.user.uid;
     const tokenEmail = (req.user.email || '').trim().toLowerCase();
 
-    if (!excursion || !ticket) {
+    if (!evento || !ticket) {
       return res.status(400).json({ error: 'Dados incompletos.' });
     }
 
@@ -20,11 +20,11 @@ exports.createPayment = async (req, res) => {
     }
 
     const db = admin.firestore();
-    const excursionRef = await db.collection('excursions').doc(String(excursion.id)).get();
-    if (!excursionRef.exists) return res.status(400).json({ error: 'Excursão não encontrada.' });
+    const eventoRef = await db.collection('eventos').doc(String(evento.id)).get();
+    if (!eventoRef.exists) return res.status(400).json({ error: 'Evento não encontrada.' });
 
-    const excursionData = excursionRef.data();
-    const realTicket = excursionData.tickets.find((t) => t.type === ticket.type);
+    const eventoData = eventoRef.data();
+    const realTicket = eventoData.tickets.find((t) => t.type === ticket.type);
     if (!realTicket) return res.status(400).json({ error: 'Tipo de ingresso inválido.' });
 
     const realPrice = realTicket.price;
@@ -38,10 +38,10 @@ exports.createPayment = async (req, res) => {
     const payload = {
       amount: Math.round(realPrice * 100),
       currency: 'BRL',
-      description: `${excursionData.name} (${ticket.type})`,
+      description: `${eventoData.name} (${ticket.type})`,
       metadata: {
         userId: uid,
-        excursionId: excursion.id,
+        eventoId: evento.id,
         ticketType: ticket.type,
         carInfo: JSON.stringify(carInfo || {}),
       },
@@ -119,8 +119,8 @@ exports.receiveWebhook = async (req, res) => {
             carInfo = {};
           }
           await orderRef.set({
-            excursionId: metadata.excursionId,
-            excursionName: event.data.description || '',
+            eventoId: metadata.eventoId,
+            eventoName: event.data.description || '',
             ticketType: metadata.ticketType,
             price: amount / 100,
             status: 'Pago',
@@ -137,10 +137,10 @@ exports.receiveWebhook = async (req, res) => {
             },
           });
 
-          if (metadata.excursionId) {
+          if (metadata.eventoId) {
             await db
-              .collection('excursions')
-              .doc(String(metadata.excursionId))
+              .collection('eventos')
+              .doc(String(metadata.eventoId))
               .update({
                 bookedSlots: admin.firestore.FieldValue.increment(1),
               });

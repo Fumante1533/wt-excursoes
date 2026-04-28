@@ -13,12 +13,12 @@ import { collectionGroup, limit, getDocs, query, orderBy } from "firebase/firest
 import { Button, Spinner, PageWrapper, Card } from "../components/AppPrimitives";
 import { CartaoEvento, EsqueletoCartaoEvento } from "../components/CartaoEvento";
 
-export default function PaginaInicial({ onNavigate, excursions, user, db }) {
-  const upcomingEvents = excursions
+export default function PaginaInicial({ onNavigate, eventos, user, db }) {
+  const upcomingEvents = eventos
     .filter((e) => new Date(e.date) >= new Date())
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   const nextEvent = upcomingEvents.length > 0 ? upcomingEvents[0] : null;
-  const pastEvents = excursions
+  const pastEvents = eventos
     .filter((e) => new Date(e.date) < new Date())
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 3);
@@ -224,11 +224,11 @@ export default function PaginaInicial({ onNavigate, excursions, user, db }) {
                           href="#"
                           onClick={(e) => {
                             e.preventDefault();
-                            onNavigate("eventDetail", { eventId: activity.items[0].excursionId });
+                            onNavigate("eventDetail", { eventId: activity.items[0].eventoId });
                           }}
                           className="font-semibold text-yellow-400 hover:underline"
                         >
-                          {activity.items[0].excursionName}
+                          {activity.items[0].eventoName}
                         </a>
                       </p>
                     )}

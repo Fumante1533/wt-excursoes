@@ -4,7 +4,7 @@ import { Sparkles, MinusCircle, Trash2 } from "lucide-react";
 import { Button, Input, Spinner } from "../components/AppPrimitives";
 import { callGeminiAPI } from "../services/geminiMockService";
 
-export default function FormularioExcursao({ onSave, initialData, onCancel }) {
+export default function FormularioEvento({ onSave, initialData, onCancel }) {
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [image, setImage] = useState(initialData?.image || "");
@@ -58,7 +58,7 @@ export default function FormularioExcursao({ onSave, initialData, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const excursionData = {
+    const eventoData = {
       id: initialData?.id || null,
       name,
       description,
@@ -75,7 +75,7 @@ export default function FormularioExcursao({ onSave, initialData, onCancel }) {
       totalSlots: parseInt(totalSlots, 10) || 0,
       bookedSlots: initialData?.bookedSlots || 0,
     };
-    await onSave(excursionData);
+    await onSave(eventoData);
   };
 
   return (
