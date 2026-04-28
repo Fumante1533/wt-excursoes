@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Download,
+  Mail,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { collection, getDocs } from "firebase/firestore";
@@ -103,6 +104,28 @@ function ListaPedidosAdmin({ orders }) {
     document.body.removeChild(link);
   };
 
+  const handleResendEmail = async (orderId) => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
+      
+      const response = await fetch(`${backendUrl}/api/user/resend-ticket`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+        },
+        body: JSON.stringify({ orderId })
+      });
+      
+      if (!response.ok) throw new Error("Erro ao reenviar ingresso");
+      toast.success("Ingresso reenviado com sucesso!");
+    } catch (err) {
+      toast.error("Falha ao reenviar o ingresso.");
+      console.error(err);
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="flex justify-between items-center mb-6">
@@ -122,6 +145,7 @@ function ListaPedidosAdmin({ orders }) {
               <th className="p-4">Evento</th>
               <th className="p-4">Ingresso</th>
               <th className="p-4">Status</th>
+              <th className="p-4">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -141,6 +165,15 @@ function ListaPedidosAdmin({ orders }) {
                   >
                     {order.status}
                   </span>
+                </td>
+                <td className="p-4">
+                  <button
+                    title="Reenviar E-mail"
+                    onClick={() => handleResendEmail(order.id)}
+                    className="p-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 rounded transition-colors"
+                  >
+                    <Mail size={16} />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -424,7 +457,7 @@ export default function PainelAdministrativo({
   const SidebarContent = () => (
     <>
       <div className="flex items-center justify-between mb-8 cursor-pointer" onClick={() => onNavigate("home")}>
-        <img src="/assets/itajobicars_logo.png" alt="Logo" className="h-16 w-auto invert brightness-0" />
+        <img src="/assets/logo.png" alt="Logo" className="h-16 w-auto invert brightness-0" />
         <button className="md:hidden text-zinc-400" onClick={() => setSidebarOpen(false)}><X size={20} /></button>
       </div>
       <nav className="flex-grow">

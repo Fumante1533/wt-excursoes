@@ -82,4 +82,76 @@ router.post('/link-guest-orders', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+const nodemailer = require('nodemailer');
+const sendTicketEmail = async (email, name, eventName, ticketCode) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    });
+    await transporter.sendMail({
+      from: `"Itajobi Cars Club" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `Reenvio de Ingresso: ${eventName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; text-align: center; color: #333;">
+          <h2 style="color: #eab308;">Aqui está o seu ingresso!</h2>
+          <p>Olá <strong>${name}</strong>, conforme solicitado, reenviamos o seu ingresso.</p>
+          <div style="margin: 20px auto; padding: 20px; background: #f3f4f6; border-radius: 8px; display: inline-block;">
+            <p style="font-size: 18px; margin: 0;">Código do Ingresso:</p>
+            <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">${ticketCode}</p>
+          </div>
+          <p>Apresente este código na entrada do evento.</p>
+          <p>Nos vemos lá!</p>
+        </div>
+      `
+    });
+  } catch (err) {
+    console.error('Erro ao reenviar email:', err);
+  }
+};
+
+router.post('/resend-ticket', verifyFirebaseToken, async (req, res) => {
+  try {
+    // Verificação simples de admin
+    const idToken = req.headers.authorization?.split('Bearer ')[1];
+    if (!idToken) return res.status(401).json({ error: 'Não autorizado.' });
+    
+    // Verifica email admin
+    const currentEmail = req.user.email?.toLowerCase();
+    const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
+    if (currentEmail !== adminEmail && !req.user.admin) {
+      return res.status(403).json({ error: 'Permissão negada.' });
+    }
+
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ error: 'ID do pedido obrigatório.' });
+
+    const db = admin.firestore();
+    const ordersQuery = db.collectionGroup('orders');
+    const ordersSnap = await ordersQuery.get();
+    
+    let targetOrder = null;
+    ordersSnap.forEach(doc => {
+      if (doc.id === orderId) targetOrder = doc.data();
+    });
+
+    if (!targetOrder) return res.status(404).json({ error: 'Pedido não encontrado.' });
+    if (!targetOrder.ticket?.code) return res.status(400).json({ error: 'Pedido sem ingresso gerado.' });
+
+    await sendTicketEmail(
+      targetOrder.buyerEmail, 
+      targetOrder.buyerName || 'Participante', 
+      targetOrder.excursionName || 'Evento', 
+      targetOrder.ticket.code
+    );
+
+    res.json({ message: 'Ingresso reenviado.' });
+  } catch (err) {
+    console.error('Erro no reenvio de ingresso:', err);
+    res.status(500).json({ error: 'Erro interno.' });
+  }
+});
+
 module.exports = router;

@@ -218,17 +218,79 @@ export default function PaginaCheckout({ cart, user }) {
             ))}
           </div>
 
+          <div className="mb-6">
+            <h3 className="text-xl font-bold mb-4">Seus Dados</h3>
+            <div className="space-y-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Input
+                  placeholder="Nome Completo"
+                  value={buyerInfo.fullName}
+                  onChange={(e) => handleBuyerInfoChange("fullName", e.target.value)}
+                  required
+                />
+                <Input
+                  placeholder="E-mail"
+                  type="email"
+                  value={buyerInfo.email}
+                  onChange={(e) => handleBuyerInfoChange("email", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Input
+                  placeholder="Telefone / WhatsApp"
+                  value={buyerInfo.phone}
+                  onChange={handlePhoneChange}
+                  maxLength="15"
+                  required
+                />
+                <Input placeholder="CPF" value={buyerInfo.cpf} onChange={handleCpfChange} maxLength="14" required />
+              </div>
+              <h4 className="text-lg font-semibold pt-4 border-t dark:border-zinc-700">Dados do Carro Principal</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  placeholder="Placa (ex: ABC1D23)"
+                  value={buyerInfo.carPlate}
+                  onChange={(e) => handleBuyerInfoChange("carPlate", formatCarPlate(e.target.value))}
+                  required
+                  maxLength="7"
+                />
+                <Input
+                  placeholder="Modelo (ex: Golf GTI)"
+                  value={buyerInfo.carModel}
+                  onChange={(e) => handleBuyerInfoChange("carModel", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  placeholder="Ano (ex: 2022)"
+                  type="number"
+                  value={buyerInfo.carYear}
+                  onChange={(e) => handleBuyerInfoChange("carYear", e.target.value)}
+                  required
+                />
+                <Input
+                  placeholder="Cor (ex: Preto)"
+                  value={buyerInfo.carColor}
+                  onChange={(e) => handleBuyerInfoChange("carColor", e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
           {totalTickets > 1 && (
             <div className="mb-8 space-y-6">
               <h3 className="text-xl font-bold flex items-center gap-2">
-                <Users size={24} /> Passageiros Adicionais
+                <Car size={24} /> Veículos Adicionais
               </h3>
               {additionalPassengers.map((passenger, idx) => (
                 <div key={idx} className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                  <h4 className="font-semibold mb-3">Acompanhante / Veículo {idx + 2}</h4>
+                  <h4 className="font-semibold mb-3">Motorista / Veículo {idx + 2}</h4>
                   <div className="grid sm:grid-cols-2 gap-4 mb-4">
                     <Input
-                      placeholder="Nome Completo"
+                      placeholder="Nome Completo (Motorista)"
                       value={passenger.fullName}
                       onChange={(e) => {
                         const newPass = [...additionalPassengers];
@@ -251,7 +313,7 @@ export default function PaginaCheckout({ cart, user }) {
                       required
                     />
                   </div>
-                  <h5 className="text-sm font-semibold mb-2 text-zinc-500">Dados do Carro (Acompanhante {idx + 2})</h5>
+                  <h5 className="text-sm font-semibold mb-2 text-zinc-500">Dados do Veículo {idx + 2}</h5>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <Input
                       placeholder="Placa"
@@ -300,68 +362,6 @@ export default function PaginaCheckout({ cart, user }) {
               ))}
             </div>
           )}
-
-          <div className="mb-6">
-            <h3 className="text-xl font-bold mb-4">Seus Dados</h3>
-            <div className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Input
-                  placeholder="Nome Completo"
-                  value={buyerInfo.fullName}
-                  onChange={(e) => handleBuyerInfoChange("fullName", e.target.value)}
-                  required
-                />
-                <Input
-                  placeholder="E-mail"
-                  type="email"
-                  value={buyerInfo.email}
-                  onChange={(e) => handleBuyerInfoChange("email", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Input
-                  placeholder="Telefone / WhatsApp"
-                  value={buyerInfo.phone}
-                  onChange={handlePhoneChange}
-                  maxLength="15"
-                  required
-                />
-                <Input placeholder="CPF" value={buyerInfo.cpf} onChange={handleCpfChange} maxLength="14" required />
-              </div>
-              <h4 className="text-lg font-semibold pt-4 border-t dark:border-zinc-700">Dados do Carro</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  placeholder="Placa (ex: ABC1D23)"
-                  value={buyerInfo.carPlate}
-                  onChange={(e) => handleBuyerInfoChange("carPlate", formatCarPlate(e.target.value))}
-                  required
-                  maxLength="7"
-                />
-                <Input
-                  placeholder="Modelo (ex: Golf GTI)"
-                  value={buyerInfo.carModel}
-                  onChange={(e) => handleBuyerInfoChange("carModel", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  placeholder="Ano (ex: 2022)"
-                  type="number"
-                  value={buyerInfo.carYear}
-                  onChange={(e) => handleBuyerInfoChange("carYear", e.target.value)}
-                  required
-                />
-                <Input
-                  placeholder="Cor (ex: Preto)"
-                  value={buyerInfo.carColor}
-                  onChange={(e) => handleBuyerInfoChange("carColor", e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-          </div>
 
           <div className="mb-6">
             <label className="font-semibold text-zinc-600 dark:text-zinc-300 mb-2 block">Cupom de Desconto</label>
