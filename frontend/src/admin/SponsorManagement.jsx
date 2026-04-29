@@ -16,11 +16,23 @@ export default function SponsorManagement({ db }) {
   const categories = ["Patrocinador Master", "Patrocinador", "Apoiador", "Parceiro"];
 
   useEffect(() => {
-    if (!db) return;
+    if (!db) {
+      console.warn("[SponsorManagement] Firestore 'db' não fornecido.");
+      return;
+    }
     const ref = collection(db, "sponsors");
-    const unsub = onSnapshot(ref, (snap) => {
-      setSponsors(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
+    console.log("[SponsorManagement] Iniciando escuta da coleção 'sponsors'...");
+    const unsub = onSnapshot(ref, 
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        console.log(`[SponsorManagement] ${list.length} parceiros carregados.`);
+        setSponsors(list);
+      },
+      (err) => {
+        console.error("[SponsorManagement] Erro ao carregar parceiros:", err);
+        toast.error("Erro de permissão ou conexão ao carregar parceiros.");
+      }
+    );
     return () => unsub();
   }, [db]);
 

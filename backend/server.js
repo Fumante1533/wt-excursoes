@@ -5,6 +5,7 @@ const fs = require('fs');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const adminRoutes = require('./routes/admin');
 const paymentRoutes = require('./routes/paymentRoutes');
 const importRoutes = require('./routes/import');
 const userRoutes = require('./routes/user');
@@ -70,6 +71,7 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/import-eventos', importRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/user', userRoutes);
+app.use('/api/admin', adminRoutes);
 
 const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
 if (fs.existsSync(frontendDist)) {

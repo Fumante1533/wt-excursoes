@@ -44,13 +44,17 @@ exports.createPreference = async (req, res) => {
     }
 
     const { evento, excursion, ticket, buyerInfo, carInfo, additionalPassengers, couponCode } = req.body || {};
+    console.log('[DEBUG] createPreference body keys:', Object.keys(req.body || {}));
+    console.log('[DEBUG] evento:', !!evento, 'excursion:', !!excursion, 'ticket:', !!ticket);
+
     const targetExcursion = evento || excursion;
     const isGuest = !req.user;
     const uid = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` : req.user.uid;
     const tokenEmail = isGuest ? '' : (req.user.email || '').trim().toLowerCase();
 
-    if (!targetExcursion || !ticket) {
-      return res.status(400).json({ error: 'Dados do evento ou ingresso ausentes.' });
+    if (!targetExcursion || !ticket || (!targetExcursion.id && !targetExcursion._id)) {
+      console.error('[ERROR] Falha na validação: targetExcursion ou ticket ausente/inválido');
+      return res.status(400).json({ error: 'Dados do evento ou ingresso ausentes ou inválidos.' });
     }
 
     if (!isGuest && tokenEmail && buyerInfo && buyerInfo.email) {
@@ -61,8 +65,30 @@ exports.createPreference = async (req, res) => {
     }
 
     const db = admin.firestore();
-    const excursionRef = await db.collection('excursions').doc(String(targetExcursion.id)).get();
-    if (!excursionRef.exists) return res.status(400).json({ error: 'Evento não encontrado.' });
+
+    // Proteção contra dupla compra (apenas para usuários logados)
+    if (!isGuest && uid) {
+      const existingOrders = await db.collection('users').doc(uid).collection('orders')
+        .where('eventoId', '==', String(targetExcursion.id))
+        .where('status', 'in', ['Pago', 'approved'])
+        .get();
+
+      if (!existingOrders.empty) {
+        return res.status(400).json({ 
+          error: 'Você já possui um ingresso para este evento. Caso queira outro, use um e-mail diferente como visitante ou entre em contato.' 
+        });
+      }
+    }
+    let excursionRef = await db.collection('excursions').doc(String(targetExcursion.id)).get();
+    
+    if (!excursionRef.exists) {
+      excursionRef = await db.collection('eventos').doc(String(targetExcursion.id)).get();
+    }
+
+    if (!excursionRef.exists) {
+      console.error('[ERROR] Evento não encontrado:', targetExcursion.id);
+      return res.status(400).json({ error: 'Evento não encontrado em nenhuma coleção.' });
+    }
 
     const excursionData = excursionRef.data();
     const realTicketIndex = excursionData.tickets.findIndex((t) => t.type === ticket.type);

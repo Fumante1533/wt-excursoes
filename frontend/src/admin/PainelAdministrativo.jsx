@@ -11,6 +11,7 @@ import {
   Trash2,
   UserCircle2,
   Tag,
+  Ticket,
   FileText,
   Menu,
   X,
@@ -25,6 +26,7 @@ import UserManagement from "./UserManagement";
 import CouponManagement from "./CouponManagement";
 import BlogManagement from "./BlogManagement";
 import SponsorManagement from "./SponsorManagement";
+import EmissaoIngressoManual from "./EmissaoIngressoManual";
 import { Button } from "../components/AppPrimitives";
 import CaixaDialogo from "../components/CaixaDialogo";
 import FormularioEvento from "./FormularioEvento";
@@ -487,6 +489,8 @@ export default function PainelAdministrativo({
         return <ValidadorIngressos eventos={eventos} />;
       case "sponsors":
         return <SponsorManagement db={db} />;
+      case "issueTicket":
+        return <EmissaoIngressoManual eventos={eventos} />;
       default:
         return null;
     }
@@ -498,6 +502,7 @@ export default function PainelAdministrativo({
     { id: "addEvento", label: "Adicionar", icon: Plus },
     { id: "orders", label: "Compradores", icon: Users },
     { id: "ticketValidation", label: "Validar Ingressos", icon: Tag },
+    { id: "issueTicket", label: "Emitir Ingresso", icon: Ticket },
     { id: "users", label: "Usuários", icon: UserCircle2 },
     { id: "coupons", label: "Cupons", icon: Tag },
     { id: "sponsors", label: "Parceiros", icon: DollarSign },

@@ -187,6 +187,14 @@ export default function PaginaCheckout({ cart, user }) {
         console.warn("Não foi possível obter o token de autenticação:", tokenErr);
       }
 
+      console.log("Iniciando pagamento com payload:", {
+        evento: firstItem.evento,
+        excursion: firstItem.evento,
+        ticket: { ...firstItem.ticket, price: totalPrice },
+        buyerInfo,
+        couponCode: couponDetails ? couponDetails.code : undefined
+      });
+
       const response = await fetch(`${backendUrl}/api/payment/create-preference`, {
         method: "POST",
         headers: {
@@ -195,6 +203,7 @@ export default function PaginaCheckout({ cart, user }) {
         },
         body: JSON.stringify({
           evento: firstItem.evento,
+          excursion: firstItem.evento, // Compatibilidade
           ticket: { ...firstItem.ticket, price: totalPrice },
           buyerInfo,
           couponCode: couponDetails ? couponDetails.code : undefined,
