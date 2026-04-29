@@ -314,7 +314,7 @@ export default function PaginaCheckout({ cart, user }) {
                     />
                   </div>
                   <h5 className="text-sm font-semibold mb-2 text-zinc-500">Dados do Veículo {idx + 2}</h5>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Input
                       placeholder="Placa"
                       value={passenger.carPlate}

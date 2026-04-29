@@ -75,11 +75,11 @@ export const PageWrapper = ({ children }) => (
 );
 
 export const Input = ({ icon: Icon, className = "", ...props }) => (
-  <div className={`flex items-center gap-3 ${className}`}>
+  <div className={`flex items-center gap-3 w-full ${className}`}>
     {Icon && <Icon className="text-zinc-400" />}
     <input
       {...props}
-      className={`flex-1 px-4 py-2 rounded-lg border bg-white dark:bg-zinc-800 ${props.className || ""}`}
+      className={`flex-1 px-4 py-2 rounded-lg border bg-white dark:bg-zinc-800 min-w-0 ${props.className || ""}`}
     />
   </div>
 );
