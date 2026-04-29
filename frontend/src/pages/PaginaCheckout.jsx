@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { MessageSquare, Users } from "lucide-react";
+import { MessageSquare, Users, Car } from "lucide-react";
 import { Wallet } from "@mercadopago/sdk-react";
 import { db, auth } from "../firebaseConfig";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
