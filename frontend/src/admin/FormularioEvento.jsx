@@ -9,6 +9,7 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
   const [description, setDescription] = useState(initialData?.description || "");
   const [image, setImage] = useState(initialData?.image || "");
   const [date, setDate] = useState(initialData?.date || "");
+  const [salesStartAt, setSalesStartAt] = useState(initialData?.salesStartAt || "");
   const [time, setTime] = useState(initialData?.time || "");
   const [timeEnd, setTimeEnd] = useState(initialData?.timeEnd || "");
   const [location, setLocation] = useState(initialData?.location || "");
@@ -119,6 +120,7 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
       description,
       image,
       date,
+      salesStartAt, // Adicionado
       time,
       timeEnd,
       location,
@@ -244,6 +246,19 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
             <option>Exclusivo</option>
             <option>Clássicos</option>
           </select>
+
+          <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl">
+            <label className="block text-sm font-bold text-violet-400 mb-2">📅 Agendar Abertura de Vendas (Opcional)</label>
+            <Input 
+              type="datetime-local" 
+              value={salesStartAt} 
+              onChange={(e) => setSalesStartAt(e.target.value)} 
+              className="bg-zinc-700 border-violet-500/30 focus:border-violet-500 h-12" 
+            />
+            <p className="text-[10px] text-zinc-500 mt-2 italic">
+              Se preenchido, o botão de compra só aparecerá no site após esta data.
+            </p>
+          </div>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
