@@ -35,6 +35,8 @@ import PaginaStatusPagamento from "./pages/PaginaStatusPagamento";
 import PaginaAutenticacao from "./pages/PaginaAutenticacao";
 import PaginaPerfilPublico from "./pages/PaginaPerfilPublico";
 import PaginaConta from "./pages/PaginaConta";
+import PaginaRanking from "./pages/PaginaRanking";
+import PaginaParceiros from "./pages/PaginaParceiros";
 import PaginaLoginAdmin from "./admin/PaginaLoginAdmin";
 import PainelAdministrativo from "./admin/PainelAdministrativo";
 import { Spinner } from "./components/AppPrimitives";
@@ -629,6 +631,10 @@ const deleteEvento = async (id) => {
           <PaginaBlog onNavigate={handleNavigate} posts={blogPosts} />
         );
       }
+      case "ranking":
+        return <PaginaRanking onNavigate={handleNavigate} />;
+      case "parceiros":
+        return <PaginaParceiros onNavigate={handleNavigate} />;
       case "faq":
         return <PaginaFaq faqs={faqs} />;
       default:

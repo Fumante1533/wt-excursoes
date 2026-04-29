@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ShoppingBag, Calendar, Ticket, Download } from "lucide-react";
+import { Sparkles, ShoppingBag, Calendar, Ticket, Download, Mail } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import html2canvas from "html2canvas";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -14,7 +14,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { toast } from "react-hot-toast";
-import { storage } from "../firebaseConfig";
+import { storage, auth } from "../firebaseConfig";
 import PurchaseCardSkeleton from "../components/PurchaseCardSkeleton";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
 import { CartaoEvento } from "../components/CartaoEvento";
@@ -362,6 +362,23 @@ function ComprasUsuario({ user, eventos, onNavigate, db: firestore }) {
     }
   };
 
+  const handleResendMyTicket = async (orderId) => {
+    try {
+      const token = await auth?.currentUser?.getIdToken();
+      if (!token) { toast.error("Você precisa estar logado."); return; }
+      const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
+      const response = await fetch(`${backendUrl}/api/user/resend-my-ticket`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ orderId }),
+      });
+      if (!response.ok) throw new Error();
+      toast.success("Ingresso reenviado para o seu e-mail!");
+    } catch {
+      toast.error("Não foi possível reenviar o ingresso.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {orders.map((order) => {
@@ -432,6 +449,16 @@ function ComprasUsuario({ user, eventos, onNavigate, db: firestore }) {
                   size="sm"
                 >
                   <Download size={16} className="mr-2 inline" /> Baixar Ingresso
+                </Button>
+              )}
+              {order.ticket?.code && (
+                <Button
+                  className="mt-2 w-full md:w-auto"
+                  onClick={() => handleResendMyTicket(order.id)}
+                  variant="secondary"
+                  size="sm"
+                >
+                  <Mail size={16} className="mr-2 inline" /> Reenviar por E-mail
                 </Button>
               )}
             </div>

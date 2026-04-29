@@ -24,6 +24,7 @@ import { BrowserMultiFormatReader } from "@zxing/browser";
 import UserManagement from "./UserManagement";
 import CouponManagement from "./CouponManagement";
 import BlogManagement from "./BlogManagement";
+import SponsorManagement from "./SponsorManagement";
 import { Button } from "../components/AppPrimitives";
 import CaixaDialogo from "../components/CaixaDialogo";
 import FormularioEvento from "./FormularioEvento";
@@ -382,37 +383,83 @@ export default function PainelAdministrativo({
 
   const renderContent = () => {
     switch (activeTab) {
-      case "dashboard":
-        return (
-          <>
-            <h2 className="text-3xl font-bold text-white mb-6">Dashboard</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {[
-                {
-                  icon: DollarSign,
-                  label: "Receita Total",
-                  value: `R$ ${totalRevenue.toFixed(2)}`,
-                },
-                {
-                  icon: Package,
-                  label: "Eventos Ativos",
-                  value: eventos.length,
-                },
-                { icon: Users, label: "Total de Vendas", value: orders.length },
-              ].map((kpi) => (
-                <div key={kpi.label} className="bg-zinc-800 p-6 rounded-lg flex items-center">
-                  <div className="bg-yellow-600/20 p-4 rounded-full mr-4">
-                    <kpi.icon className="text-yellow-400" size={28} />
+      case "dashboard": {
+          const paidOrders = orders.filter(o => o.status === "Pago");
+          const pendingOrders = orders.filter(o => o.status === "Pendente");
+          const paidRevenue = paidOrders.reduce((s, o) => s + Number(o.price || 0), 0);
+          return (
+            <>
+              <h2 className="text-3xl font-bold text-white mb-6">Dashboard</h2>
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {[
+                  { icon: DollarSign, label: "Receita Confirmada", value: `R$ ${paidRevenue.toFixed(2)}`, color: "text-green-400", bg: "bg-green-500/10" },
+                  { icon: Package, label: "Eventos Ativos", value: eventos.length, color: "text-blue-400", bg: "bg-blue-500/10" },
+                  { icon: Users, label: "Inscrições Pagas", value: paidOrders.length, color: "text-yellow-400", bg: "bg-yellow-500/10" },
+                  { icon: BarChart2, label: "Aguardando Pagto.", value: pendingOrders.length, color: "text-orange-400", bg: "bg-orange-500/10" },
+                ].map((kpi) => (
+                  <div key={kpi.label} className="bg-zinc-800 p-5 rounded-xl flex items-center gap-4 border border-zinc-700">
+                    <div className={`${kpi.bg} p-3 rounded-xl flex-shrink-0`}>
+                      <kpi.icon className={kpi.color} size={26} />
+                    </div>
+                    <div>
+                      <p className="text-zinc-400 text-sm">{kpi.label}</p>
+                      <p className="text-2xl font-bold text-white">{kpi.value}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-zinc-400 text-sm">{kpi.label}</p>
-                    <p className="text-2xl font-bold text-white">{kpi.value}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        );
+                ))}
+              </div>
+
+              {/* Vagas por Evento */}
+              <h3 className="text-xl font-bold text-white mb-4">Vagas por Evento</h3>
+              <div className="bg-zinc-800 rounded-xl border border-zinc-700 overflow-x-auto mb-8">
+                <table className="w-full text-left text-zinc-300">
+                  <thead className="bg-zinc-900/50">
+                    <tr className="border-b border-zinc-700">
+                      <th className="p-4">Evento</th>
+                      <th className="p-4">Lote</th>
+                      <th className="p-4 text-center">Vendidos</th>
+                      <th className="p-4 text-center">Total</th>
+                      <th className="p-4 text-center">Restam</th>
+                      <th className="p-4 text-center">Ocupação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eventos.flatMap((ev) =>
+                      (ev.tickets || []).map((t, idx) => {
+                        const sold = Number((ev.ticketSoldCounts || {})[String(idx)] || 0);
+                        const total = Number(t.quantity || 0);
+                        const remaining = total > 0 ? Math.max(0, total - sold) : "∞";
+                        const pct = total > 0 ? Math.round((sold / total) * 100) : null;
+                        return (
+                          <tr key={`${ev.id}-${idx}`} className="border-b border-zinc-700 last:border-b-0 hover:bg-zinc-700/30">
+                            <td className="p-4 font-semibold text-white">{ev.name}</td>
+                            <td className="p-4">{t.type} — R$ {Number(t.price).toFixed(2)}</td>
+                            <td className="p-4 text-center text-yellow-400 font-bold">{sold}</td>
+                            <td className="p-4 text-center">{total || "—"}</td>
+                            <td className={`p-4 text-center font-bold ${remaining === 0 ? "text-red-400" : "text-green-400"}`}>{remaining}</td>
+                            <td className="p-4">
+                              {pct !== null ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-grow bg-zinc-700 rounded-full h-2">
+                                    <div className={`h-2 rounded-full ${pct >= 90 ? "bg-red-500" : pct >= 60 ? "bg-yellow-500" : "bg-green-500"}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                                  </div>
+                                  <span className="text-xs text-zinc-400 w-8">{pct}%</span>
+                                </div>
+                              ) : (
+                                <span className="text-zinc-500 text-sm">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          );
+        }
       case "eventos":
         return (
           <TabelaEventoAdmin eventos={eventos} onEdit={handleEdit} onDelete={openDeleteModal} />
@@ -438,6 +485,8 @@ export default function PainelAdministrativo({
         return <BlogManagement db={db} />;
       case "ticketValidation":
         return <ValidadorIngressos eventos={eventos} />;
+      case "sponsors":
+        return <SponsorManagement db={db} />;
       default:
         return null;
     }
@@ -451,6 +500,7 @@ export default function PainelAdministrativo({
     { id: "ticketValidation", label: "Validar Ingressos", icon: Tag },
     { id: "users", label: "Usuários", icon: UserCircle2 },
     { id: "coupons", label: "Cupons", icon: Tag },
+    { id: "sponsors", label: "Parceiros", icon: DollarSign },
     { id: "blog", label: "Blog", icon: FileText },
   ];
 

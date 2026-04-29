@@ -80,7 +80,21 @@ exports.createPreference = async (req, res) => {
       }
     }
 
-    // Validação de CPF no servidor
+    // Proteção contra dupla compra (apenas para usuários logados)
+    if (!isGuest) {
+      const existingOrdersSnap = await db
+        .collection('users').doc(uid).collection('orders')
+        .where('eventoId', '==', String(targetExcursion.id))
+        .where('status', '==', 'Pago')
+        .limit(1)
+        .get();
+      if (!existingOrdersSnap.empty) {
+        return res.status(409).json({
+          error: `Você já possui um ingresso pago para o evento "${excursionData.name}". Acesse "Minhas Inscrições" para visualizá-lo.`
+        });
+      }
+    }
+
     if (buyerInfo?.cpf) {
       const cpfClean = String(buyerInfo.cpf).replace(/\D/g, '');
       const validCpf = (cpf) => {

@@ -56,6 +56,8 @@ export default function AppFooter({ onNavigate, db }) {
             <ul className="mt-4 space-y-2">
               <li><a onClick={() => onNavigate("home")} className="hover:text-yellow-400 cursor-pointer">Início</a></li>
               <li><a onClick={() => onNavigate("eventsHub")} className="hover:text-yellow-400 cursor-pointer">Eventos</a></li>
+              <li><a onClick={() => onNavigate("ranking")} className="hover:text-yellow-400 cursor-pointer">🏆 Hall da Fama</a></li>
+              <li><a onClick={() => onNavigate("parceiros")} className="hover:text-yellow-400 cursor-pointer">🤝 Parceiros</a></li>
               <li><a onClick={() => onNavigate("about")} className="hover:text-yellow-400 cursor-pointer">Quem Somos Nós</a></li>
               <li><a onClick={() => onNavigate("blog")} className="hover:text-yellow-400 cursor-pointer">Blog</a></li>
               <li><a onClick={() => onNavigate("faq")} className="hover:text-yellow-400 cursor-pointer">FAQ</a></li>

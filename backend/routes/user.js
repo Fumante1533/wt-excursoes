@@ -154,4 +154,34 @@ router.post('/resend-ticket', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// POST /api/user/resend-my-ticket
+// O próprio usuário reenvia o seu ingresso
+router.post('/resend-my-ticket', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { uid, email } = req.user;
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ error: 'ID do pedido obrigatório.' });
+
+    const db = admin.firestore();
+    const orderRef = db.collection('users').doc(uid).collection('orders').doc(orderId);
+    const snap = await orderRef.get();
+
+    if (!snap.exists) return res.status(404).json({ error: 'Pedido não encontrado.' });
+    const order = snap.data();
+    if (!order.ticket?.code) return res.status(400).json({ error: 'Ingresso ainda não gerado.' });
+
+    await sendTicketEmail(
+      email,
+      order.buyerName || 'Participante',
+      order.eventoName || 'Evento',
+      order.ticket.code
+    );
+
+    res.json({ message: 'Ingresso reenviado com sucesso.' });
+  } catch (err) {
+    console.error('Erro ao reenviar ingresso do usuário:', err);
+    res.status(500).json({ error: 'Erro interno.' });
+  }
+});
+
 module.exports = router;
