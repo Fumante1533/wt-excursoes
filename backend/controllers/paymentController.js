@@ -43,7 +43,7 @@ exports.createPreference = async (req, res) => {
       return res.status(503).json({ error: 'Pagamento não configurado no servidor.' });
     }
 
-    const { evento, excursion, ticket, buyerInfo, carInfo, additionalPassengers } = req.body || {};
+    const { evento, excursion, ticket, buyerInfo, carInfo, additionalPassengers, couponCode } = req.body || {};
     const targetExcursion = evento || excursion;
     const isGuest = !req.user;
     const uid = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` : req.user.uid;
@@ -65,19 +65,39 @@ exports.createPreference = async (req, res) => {
     if (!excursionRef.exists) return res.status(400).json({ error: 'Evento não encontrado.' });
 
     const excursionData = excursionRef.data();
-    const realTicketIndex = eventoData.tickets.findIndex((t) => t.type === ticket.type);
-    const realTicket = realTicketIndex >= 0 ? eventoData.tickets[realTicketIndex] : null;
+    const realTicketIndex = excursionData.tickets.findIndex((t) => t.type === ticket.type);
+    const realTicket = realTicketIndex >= 0 ? excursionData.tickets[realTicketIndex] : null;
     if (!realTicket) return res.status(400).json({ error: 'Tipo de ingresso inválido.' });
 
     // Verificar disponibilidade do lote
     const qty = Number(realTicket.quantity || 0);
-    // Calcular quantos ingressos no total
     const totalQtyDemanded = 1 + (Array.isArray(additionalPassengers) ? additionalPassengers.length : 0);
     if (qty > 0) {
-      const soldCounts = eventoData.ticketSoldCounts || {};
+      const soldCounts = excursionData.ticketSoldCounts || {};
       const sold = Number(soldCounts[String(realTicketIndex)] || 0);
       if (sold + totalQtyDemanded > qty) {
         return res.status(400).json({ error: `Vagas insuficientes no lote "${ticket.type}". Restam ${Math.max(0, qty - sold)}.` });
+      }
+    }
+
+    // Validação de CPF no servidor
+    if (buyerInfo?.cpf) {
+      const cpfClean = String(buyerInfo.cpf).replace(/\D/g, '');
+      const validCpf = (cpf) => {
+        if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+        let sum = 0, remainder;
+        for (let i = 1; i <= 9; i++) sum += parseInt(cpf[i - 1]) * (11 - i);
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf[9])) return false;
+        sum = 0;
+        for (let i = 1; i <= 10; i++) sum += parseInt(cpf[i - 1]) * (12 - i);
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        return remainder === parseInt(cpf[10]);
+      };
+      if (!validCpf(cpfClean)) {
+        return res.status(400).json({ error: 'CPF inválido.' });
       }
     }
 
@@ -121,6 +141,7 @@ exports.createPreference = async (req, res) => {
         is_guest: String(isGuest),
         evento_id: String(targetExcursion.id),
         ticket_type: ticket.type,
+        coupon_code: couponCode ? String(couponCode).toUpperCase() : '',
         car_info: JSON.stringify(carInfo || {}),
         additional_passengers: additionalPassengers ? JSON.stringify(additionalPassengers).substring(0, 450) : "[]",
       },
@@ -267,6 +288,21 @@ exports.receiveWebhook = async (req, res) => {
       }
 
       await batch.commit();
+
+      // Incrementa usedCount do cupom, se havia cupom aplicado
+      const couponCode = orderData.metadata?.coupon_code;
+      if (couponCode) {
+        try {
+          const couponSnap = await db.collection('coupons').where('code', '==', couponCode).limit(1).get();
+          if (!couponSnap.empty) {
+            await couponSnap.docs[0].ref.update({
+              usedCount: admin.firestore.FieldValue.increment(1)
+            });
+          }
+        } catch (couponErr) {
+          console.error('Erro ao incrementar cupom:', couponErr.message);
+        }
+      }
 
       // Envia os emails de forma assíncrona
       if (orderData.payer?.email) {

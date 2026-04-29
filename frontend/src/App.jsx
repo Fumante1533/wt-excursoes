@@ -561,14 +561,21 @@ const deleteEvento = async (id) => {
           <PaginaStatusPagamento
             onNavigate={handleNavigate}
             status="success"
-            orderDetails={pageData.orderDetails}
-            sessionId={pageData.sessionId}
+            user={user}
+          />
+        );
+      case "pending":
+        return (
+          <PaginaStatusPagamento
+            onNavigate={handleNavigate}
+            status="pending"
+            user={user}
           />
         );
       case "error":
-          return (
-          <PaginaStatusPagamento onNavigate={handleNavigate} status="error" orderDetails={pageData.orderDetails} />
-          );
+        return (
+          <PaginaStatusPagamento onNavigate={handleNavigate} status="error" user={user} />
+        );
       case "auth":
         return <PaginaAutenticacao onLoginSuccess={handleLoginSuccess} />;
       case "account":

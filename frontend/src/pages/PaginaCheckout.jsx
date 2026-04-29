@@ -94,35 +94,63 @@ export default function PaginaCheckout({ cart, user }) {
     setCouponError("");
     const codeToFind = couponCode.toUpperCase();
     try {
-      const couponsRef = collection(db, "coupons");
-      const q = query(couponsRef, where("code", "==", codeToFind));
+      const q = query(collection(db, "coupons"), where("code", "==", codeToFind));
       const querySnapshot = await getDocs(q);
 
-      if (!querySnapshot.empty) {
-        const couponSnap = querySnapshot.docs[0];
-        const couponData = couponSnap.data();
-
-        if (couponData.isActive) {
-          let discountValue = 0;
-          if (couponData.discountType === "percentage") {
-            discountValue = (initialPrice * Number(couponData.value)) / 100;
-          } else {
-            discountValue = Number(couponData.value);
-          }
-          setCouponDetails(couponData);
-          setDiscount(discountValue);
-          setFinalPrice(Math.max(0, initialPrice - discountValue));
-        } else {
-          setCouponError("Este cupom não está mais ativo.");
-        }
-      } else {
+      if (querySnapshot.empty) {
         setCouponError("Cupom inválido.");
+        return;
       }
+
+      const couponSnap = querySnapshot.docs[0];
+      const couponData = couponSnap.data();
+
+      if (!couponData.isActive) {
+        setCouponError("Este cupom não está mais ativo.");
+        return;
+      }
+
+      // Verifica limite de usos
+      if (couponData.maxUses != null && (couponData.usedCount || 0) >= couponData.maxUses) {
+        setCouponError("Este cupom já atingiu o limite de usos.");
+        return;
+      }
+
+      // Verifica restrição de evento
+      if (couponData.eventId) {
+        const cartEventId = cart[0]?.evento?.id;
+        if (cartEventId !== couponData.eventId) {
+          setCouponError(`Este cupom é válido apenas para o evento: ${couponData.eventName || couponData.eventId}.`);
+          return;
+        }
+      }
+
+      // Verifica restrição de tipo de ingresso
+      if (couponData.ticketTypes?.length > 0) {
+        const cartTicketTypes = cart.map(item => item.ticket?.type);
+        const hasValidTicket = cartTicketTypes.some(t => couponData.ticketTypes.includes(t));
+        if (!hasValidTicket) {
+          setCouponError(`Este cupom é válido apenas para: ${couponData.ticketTypes.join(", ")}.`);
+          return;
+        }
+      }
+
+      let discountValue = 0;
+      if (couponData.discountType === "percentage") {
+        discountValue = (initialPrice * Number(couponData.value)) / 100;
+      } else {
+        discountValue = Number(couponData.value);
+      }
+
+      setCouponDetails({ ...couponData, id: couponSnap.id });
+      setDiscount(discountValue);
+      setFinalPrice(Math.max(0, initialPrice - discountValue));
     } catch (err) {
       console.error("Erro ao aplicar cupom:", err);
       setCouponError("Não foi possível aplicar o cupom.");
     }
   };
+
 
   const initiatePayment = async () => {
     if (
@@ -169,6 +197,7 @@ export default function PaginaCheckout({ cart, user }) {
           evento: firstItem.evento,
           ticket: { ...firstItem.ticket, price: totalPrice },
           buyerInfo,
+          couponCode: couponDetails ? couponDetails.code : undefined,
           carInfo: {
             plate: formatCarPlate(buyerInfo.carPlate),
             model: buyerInfo.carModel,

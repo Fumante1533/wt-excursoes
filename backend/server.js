@@ -63,7 +63,7 @@ if (paymentProvider === 'stripe' && process.env.STRIPE_WEBHOOK_SECRET) {
 app.use(express.json({ limit: '2mb' }));
 
 app.get('/', (req, res) => {
-  res.send('Backend WT Eventos está no ar!');
+  res.send('Itajobi Cars Club — API no ar! 🚗');
 });
 
 app.use('/api/payment', paymentRoutes);
