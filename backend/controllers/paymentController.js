@@ -44,17 +44,27 @@ exports.createPreference = async (req, res) => {
     }
 
     const { evento, excursion, ticket, buyerInfo, carInfo, additionalPassengers, couponCode } = req.body || {};
-    console.log('[DEBUG] createPreference body keys:', Object.keys(req.body || {}));
-    console.log('[DEBUG] evento:', !!evento, 'excursion:', !!excursion, 'ticket:', !!ticket);
+    console.log('[DEBUG] createPreference payload recebido:', JSON.stringify(req.body, null, 2));
 
     const targetExcursion = evento || excursion;
-    const isGuest = !req.user;
-    const uid = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` : req.user.uid;
-    const tokenEmail = isGuest ? '' : (req.user.email || '').trim().toLowerCase();
+    
+    // Log detalhado para depuração
+    if (!targetExcursion) console.warn('[DEBUG] targetExcursion ausente');
+    if (!ticket) console.warn('[DEBUG] ticket ausente');
+    if (targetExcursion && !targetExcursion.id && !targetExcursion._id) {
+        console.warn('[DEBUG] targetExcursion sem ID:', targetExcursion);
+    }
 
     if (!targetExcursion || !ticket || (!targetExcursion.id && !targetExcursion._id)) {
-      console.error('[ERROR] Falha na validação: targetExcursion ou ticket ausente/inválido');
-      return res.status(400).json({ error: 'Dados do evento ou ingresso ausentes ou inválidos.' });
+      console.error('[ERROR] Falha na validação do payload de pagamento');
+      return res.status(400).json({ 
+        error: 'Dados do evento ou ingresso ausentes ou inválidos.',
+        receivedKeys: Object.keys(req.body || {}),
+        hasEvento: !!evento,
+        hasExcursion: !!excursion,
+        hasTicket: !!ticket,
+        eventoId: targetExcursion ? (targetExcursion.id || targetExcursion._id) : null
+      });
     }
 
     if (!isGuest && tokenEmail && buyerInfo && buyerInfo.email) {
@@ -66,16 +76,17 @@ exports.createPreference = async (req, res) => {
 
     const db = admin.firestore();
 
-    // Proteção contra dupla compra (apenas para usuários logados)
+    // Verificação de dupla compra (apenas para usuários logados)
     if (!isGuest && uid) {
       const existingOrders = await db.collection('users').doc(uid).collection('orders')
         .where('eventoId', '==', String(targetExcursion.id))
         .where('status', 'in', ['Pago', 'approved'])
+        .limit(1)
         .get();
 
       if (!existingOrders.empty) {
-        return res.status(400).json({ 
-          error: 'Você já possui um ingresso para este evento. Caso queira outro, use um e-mail diferente como visitante ou entre em contato.' 
+        return res.status(409).json({ 
+          error: 'Você já possui um ingresso pago para este evento. Acesse "Minhas Inscrições" para visualizá-lo.' 
         });
       }
     }
@@ -106,20 +117,7 @@ exports.createPreference = async (req, res) => {
       }
     }
 
-    // Proteção contra dupla compra (apenas para usuários logados)
-    if (!isGuest) {
-      const existingOrdersSnap = await db
-        .collection('users').doc(uid).collection('orders')
-        .where('eventoId', '==', String(targetExcursion.id))
-        .where('status', '==', 'Pago')
-        .limit(1)
-        .get();
-      if (!existingOrdersSnap.empty) {
-        return res.status(409).json({
-          error: `Você já possui um ingresso pago para o evento "${excursionData.name}". Acesse "Minhas Inscrições" para visualizá-lo.`
-        });
-      }
-    }
+
 
     if (buyerInfo?.cpf) {
       const cpfClean = String(buyerInfo.cpf).replace(/\D/g, '');

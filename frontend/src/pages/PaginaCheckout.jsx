@@ -174,9 +174,25 @@ export default function PaginaCheckout({ cart, user }) {
 
     try {
       const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
+      
+      if (!cart || cart.length === 0) {
+        throw new Error("Seu carrinho está vazio. Volte para a página de eventos.");
+      }
+
       const firstItem = cart[0];
+      
+      // Validação crítica antes de enviar
+      if (!firstItem.evento || (!firstItem.evento.id && !firstItem.evento._id)) {
+        console.error("[CHECKOUT ERROR] Evento inválido no carrinho:", firstItem.evento);
+        throw new Error("Não foi possível identificar o evento selecionado. Tente adicioná-lo ao carrinho novamente.");
+      }
+      
+      if (!firstItem.ticket) {
+        console.error("[CHECKOUT ERROR] Ingresso ausente no carrinho:", firstItem);
+        throw new Error("Não foi possível identificar o tipo de ingresso selecionado.");
+      }
+
       // Usa auth.currentUser para garantir acesso ao método getIdToken() do SDK Firebase
-      // (o prop `user` pode ser um plain object sem os métodos do SDK)
       let token = "";
       try {
         const currentUser = auth?.currentUser;
@@ -187,13 +203,25 @@ export default function PaginaCheckout({ cart, user }) {
         console.warn("Não foi possível obter o token de autenticação:", tokenErr);
       }
 
-      console.log("Iniciando pagamento com payload:", {
+      const payload = {
         evento: firstItem.evento,
-        excursion: firstItem.evento,
+        excursion: firstItem.evento, // Para compatibilidade legada
         ticket: { ...firstItem.ticket, price: totalPrice },
         buyerInfo,
-        couponCode: couponDetails ? couponDetails.code : undefined
-      });
+        couponCode: couponDetails ? couponDetails.code : undefined,
+        carInfo: {
+          plate: formatCarPlate(buyerInfo.carPlate),
+          model: buyerInfo.carModel,
+          year: buyerInfo.carYear,
+          color: buyerInfo.carColor,
+        },
+        additionalPassengers: additionalPassengers.map(p => ({
+          ...p,
+          carPlate: formatCarPlate(p.carPlate)
+        })),
+      };
+
+      console.log("[CHECKOUT DEBUG] Enviando payload:", payload);
 
       const response = await fetch(`${backendUrl}/api/payment/create-preference`, {
         method: "POST",
@@ -201,23 +229,7 @@ export default function PaginaCheckout({ cart, user }) {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          evento: firstItem.evento,
-          excursion: firstItem.evento, // Compatibilidade
-          ticket: { ...firstItem.ticket, price: totalPrice },
-          buyerInfo,
-          couponCode: couponDetails ? couponDetails.code : undefined,
-          carInfo: {
-            plate: formatCarPlate(buyerInfo.carPlate),
-            model: buyerInfo.carModel,
-            year: buyerInfo.carYear,
-            color: buyerInfo.carColor,
-          },
-          additionalPassengers: additionalPassengers.map(p => ({
-            ...p,
-            carPlate: formatCarPlate(p.carPlate)
-          })),
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
