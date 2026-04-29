@@ -1,12 +1,22 @@
-import React, { useState } from "react";
-import { Facebook, Instagram, Phone } from "lucide-react";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import React, { useState, useEffect } from "react";
+import { Facebook, Instagram, Phone, Building2 } from "lucide-react";
+import { doc, serverTimestamp, setDoc, collection, onSnapshot } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { Button, Spinner } from "./AppPrimitives";
 
 export default function AppFooter({ onNavigate, db }) {
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [sponsors, setSponsors] = useState([]);
+
+  useEffect(() => {
+    if (!db) return;
+    const ref = collection(db, "sponsors");
+    const unsub = onSnapshot(ref, (snap) => {
+      setSponsors(snap.docs.map((d) => ({ id: d.id, ...d.data() })).slice(0, 4));
+    });
+    return () => unsub();
+  }, [db]);
 
   const handleNewsletterSubmit = async (e) => {
     e.preventDefault();
@@ -71,11 +81,26 @@ export default function AppFooter({ onNavigate, db }) {
               <li><a onClick={() => onNavigate("privacy")} className="hover:text-yellow-400 cursor-pointer">Política de Privacidade</a></li>
             </ul>
             <h3 className="text-lg font-semibold text-white mt-6">Parceiros</h3>
-            <ul className="mt-4 space-y-3">
-              <li className="flex items-center gap-3"><img src="/assets/prc1.png" alt="Logo Parceiro 1" className="bg-zinc-700 rounded-full h-14" /><span className="text-zinc-400">ART METAL</span></li>
-              <li className="flex items-center gap-3"><img src="/assets/prc2.png" alt="Logo Parceiro 2" className="bg-zinc-700 rounded-full h-14" /><span className="text-zinc-400">Bar do Pico</span></li>
-              <li className="flex items-center gap-3"><img src="/assets/prc3.png" alt="Logo Parceiro 3" className="bg-zinc-700 rounded-full h-14" /><span className="text-zinc-400">ITAJOBICARSCLUB</span></li>
-            </ul>
+            {sponsors.length > 0 ? (
+              <ul className="mt-4 space-y-3">
+                {sponsors.map((s) => (
+                  <li key={s.id} className="flex items-center gap-3">
+                    {s.logoUrl ? (
+                      <img
+                        src={s.logoUrl}
+                        alt={`Logo ${s.name}`}
+                        className="bg-zinc-700 rounded-full h-12 w-12 object-contain"
+                      />
+                    ) : (
+                      <div className="bg-zinc-700 rounded-full h-12 w-12 flex items-center justify-center flex-shrink-0">
+                        <Building2 size={20} className="text-zinc-400" />
+                      </div>
+                    )}
+                    <span className="text-zinc-400">{s.name}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
 
           <div>

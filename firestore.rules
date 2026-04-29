@@ -78,6 +78,11 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
     }
 
+    match /sponsors/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Perfil: leitura pública usada pelo perfil / comentários (evite colocar dados sensíveis no doc raiz).
     match /users/{userId} {
       allow read: if true;
