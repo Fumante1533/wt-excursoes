@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   Bot,
   Sparkles,
+  Car,
 } from "lucide-react";
 import ReviewSection from "../components/ReviewSection";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
