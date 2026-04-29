@@ -76,23 +76,23 @@ exports.sendConfirmationEmail = functions.firestore
     const msg = {
       to: userEmail,
       from: "itacars237@admin.com",
-      subject: "Sua próxima aventura está confirmada!",
+      subject: "Sua inscrição está confirmada! 🚗💨",
       html: `
-                <h1>Olá, ${escapeHtml(userName || "Aventureiro(a)")}!</h1>
-                <p>Obrigado por comprar conosco. Sua evento está confirmada!</p>
-                <h2>Detalhes do Pedido:</h2>
+                <h1>Olá, ${escapeHtml(userName || "Membro")}!</h1>
+                <p>Obrigado por se inscrever conosco. Seu evento está confirmado!</p>
+                <h2>Detalhes da Inscrição:</h2>
                 <ul>
                     <li><strong>Evento:</strong> ${eventoName}</li>
-                    <li><strong>Ingresso:</strong> ${ticketType}</li>
+                    <li><strong>Tipo de Ingresso:</strong> ${ticketType}</li>
                     ${
                       dateStr
-                        ? `<li><strong>Data da Encontro:</strong> ${dateStr}</li>`
+                        ? `<li><strong>Data do Evento:</strong> ${dateStr}</li>`
                         : ""
                     }
                     <li><strong>Valor Pago:</strong> R$ ${priceStr}</li>
                 </ul>
-                <p>Mal podemos esperar para viajar com você!</p>
-                <p>Atenciosamente,<br>Equipe WT Eventos</p>
+                <p>Mal podemos esperar para acelerar com você!</p>
+                <p>Atenciosamente,<br>Equipe Itajobi Cars Club</p>
             `,
     };
 
