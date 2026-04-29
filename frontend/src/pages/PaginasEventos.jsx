@@ -511,8 +511,8 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                     Cancelamentos com até 7 dias de antecedência têm reembolso integral.
                   </p>
                 </div>
-                <h3 className="text-2xl font-bold mb-4 text-zinc-800 dark:text-white">Galeria dos Viajantes</h3>
-                <p className="text-zinc-500 dark:text-zinc-400 mb-4">Veja as fotos enviadas por outros aventureiros!</p>
+                <h3 className="text-2xl font-bold mb-4 text-zinc-800 dark:text-white">Galeria de Membros</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 mb-4">Veja as fotos enviadas por outros participantes!</p>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="w-full h-24 bg-zinc-200 dark:bg-zinc-800 rounded-md flex items-center justify-center text-zinc-400">
                     <ImageIcon size={24} />

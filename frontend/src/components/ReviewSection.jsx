@@ -79,7 +79,7 @@ const ReviewSection = ({ eventoId, user, db }) => {
 
     return (
         <div className="mt-12">
-            <h2 className="text-3xl font-bold text-zinc-800 dark:text-white mb-6">Avaliações de Viajantes</h2>
+            <h2 className="text-3xl font-bold text-zinc-800 dark:text-white mb-6">Avaliações de Participantes</h2>
             
             <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-lg mb-8">
                 <div className="flex items-center gap-4 mb-4">
