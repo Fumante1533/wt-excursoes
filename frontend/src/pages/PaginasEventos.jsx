@@ -401,46 +401,115 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                   <div className="mt-auto">
                     <h2 className="text-2xl font-bold text-zinc-700 dark:text-white mb-4">Tipos de Inscrição</h2>
                     <div className="space-y-4">
-                      {evento.tickets.map((ticket, index) => {
-                        const sold = evento.ticketSoldCounts?.[String(index)] || 0;
-                        const qty = ticket.quantity || 0;
-                        const isSoldOut = qty > 0 && sold >= qty;
-                        const remaining = qty > 0 ? qty - sold : null;
-                        return (
-                          <div
-                            key={ticket.type}
-                            className={`flex justify-between items-center p-4 rounded-lg ${
-                              isSoldOut
-                                ? "bg-zinc-200 dark:bg-zinc-700/50 opacity-60"
-                                : "bg-zinc-100 dark:bg-zinc-800"
-                            }`}
-                          >
-                            <div>
-                              <p className="font-semibold text-zinc-800 dark:text-white">{ticket.type}</p>
-                              <p className="text-yellow-500 font-bold text-lg dark:text-yellow-400">
-                                R$ {Number(ticket.price).toFixed(2)}
-                              </p>
-                              {isSoldOut ? (
-                                <span className="text-xs font-bold text-red-500 uppercase tracking-wide">🔴 Esgotado</span>
-                              ) : remaining !== null ? (
-                                <span className="text-xs text-green-600 dark:text-green-400">
-                                  {remaining} {remaining === 1 ? "vaga restante" : "vagas restantes"}
-                                </span>
-                              ) : null}
+                    <div className="space-y-6">
+                      {(() => {
+                        // Agrupa os ingressos por "Tipo Base" (ex: Carro, Moto)
+                        const groups = {};
+                        evento.tickets.forEach((t, idx) => {
+                          const baseType = t.type.split(" - ")[0].trim();
+                          if (!groups[baseType]) groups[baseType] = [];
+                          groups[baseType].push({ ...t, originalIndex: idx });
+                        });
+
+                        return Object.entries(groups).map(([baseName, groupTickets]) => {
+                          // Encontra o lote ativo (o primeiro que não está esgotado)
+                          const activeTicket = groupTickets.find(t => {
+                            const sold = evento.ticketSoldCounts?.[String(t.originalIndex)] || 0;
+                            const qty = t.quantity || 0;
+                            return qty === 0 || sold < qty;
+                          }) || groupTickets[groupTickets.length - 1]; // Se tudo esgotado, pega o último
+
+                          const sold = evento.ticketSoldCounts?.[String(activeTicket.originalIndex)] || 0;
+                          const qty = activeTicket.quantity || 0;
+                          const isSoldOut = qty > 0 && sold >= qty;
+                          const remaining = qty > 0 ? qty - sold : null;
+
+                          return (
+                            <div key={baseName} className="bg-zinc-100 dark:bg-zinc-800/40 rounded-2xl border border-zinc-200 dark:border-zinc-700/50 overflow-hidden">
+                              <div className="p-4 bg-zinc-200/50 dark:bg-zinc-700/30 border-b border-zinc-200 dark:border-zinc-700/50 flex justify-between items-center">
+                                <h3 className="font-bold text-zinc-800 dark:text-white flex items-center gap-2">
+                                  <Car size={18} className="text-yellow-500" /> {baseName}
+                                </h3>
+                                {groupTickets.length > 1 && (
+                                  <span className="text-[10px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2 py-1 rounded-full font-bold uppercase">
+                                    {groupTickets.length} Lotes Disponíveis
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <div className="p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div className="flex-grow text-center md:text-left">
+                                  <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
+                                    <p className="font-bold text-xl text-zinc-900 dark:text-white">
+                                      {activeTicket.type.includes(" - ") ? activeTicket.type.split(" - ")[1] : activeTicket.type}
+                                    </p>
+                                    {isSoldOut && (
+                                      <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black uppercase animate-pulse">Esgotado</span>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-center md:justify-start gap-3">
+                                    <p className="text-2xl font-black text-yellow-600 dark:text-yellow-400">
+                                      R$ {Number(activeTicket.price).toFixed(2)}
+                                    </p>
+                                    {remaining !== null && !isSoldOut && (
+                                      <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-200 dark:bg-zinc-700 px-2 py-1 rounded-lg">
+                                        {remaining} {remaining === 1 ? "vaga" : "vagas"}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <Button
+                                  onClick={() => {
+                                    if (typeof onNavigate.onAddToCart === "function") {
+                                      onNavigate.onAddToCart(evento, activeTicket);
+                                    }
+                                  }}
+                                  disabled={isSoldOut || typeof onNavigate.onAddToCart !== "function"}
+                                  className={`w-full md:w-auto h-14 px-8 text-lg font-bold shadow-lg transition-all ${
+                                    isSoldOut 
+                                      ? "bg-zinc-400 dark:bg-zinc-600" 
+                                      : "bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 hover:scale-105"
+                                  }`}
+                                >
+                                  {isSoldOut ? "Esgotado" : (
+                                    <span className="flex items-center gap-2">
+                                      Garantir Vaga <Ticket size={20} />
+                                    </span>
+                                  )}
+                                </Button>
+                              </div>
+
+                              {/* Histórico de Lotes (Mini) */}
+                              {groupTickets.length > 1 && (
+                                <div className="px-5 pb-4 flex flex-wrap gap-2 opacity-60">
+                                  {groupTickets.map((t) => {
+                                    const tSold = evento.ticketSoldCounts?.[String(t.originalIndex)] || 0;
+                                    const tQty = t.quantity || 0;
+                                    const tIsSoldOut = tQty > 0 && tSold >= tQty;
+                                    const tIsActive = t.originalIndex === activeTicket.originalIndex;
+
+                                    return (
+                                      <div 
+                                        key={t.type} 
+                                        className={`text-[10px] px-2 py-1 rounded border ${
+                                          tIsActive 
+                                            ? "border-yellow-500/50 text-yellow-600 dark:text-yellow-400 font-bold" 
+                                            : "border-zinc-300 dark:border-zinc-700 text-zinc-500"
+                                        } ${tIsSoldOut ? "line-through grayscale" : ""}`}
+                                      >
+                                        {t.type.split(" - ")[1] || t.type}: R$ {Number(t.price).toFixed(0)}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                            <Button
-                              onClick={() => {
-                                if (typeof onNavigate.onAddToCart === "function") {
-                                  onNavigate.onAddToCart(evento, ticket);
-                                }
-                              }}
-                              disabled={isSoldOut || typeof onNavigate.onAddToCart !== "function"}
-                            >
-                              {isSoldOut ? "Esgotado" : <>Inscrever-se <Ticket className="inline ml-2" size={18} /></>}
-                            </Button>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
+                    </div>
                     </div>
                   </div>
                 ) : (

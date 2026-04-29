@@ -117,8 +117,6 @@ exports.createPreference = async (req, res) => {
       }
     }
 
-
-
     if (buyerInfo?.cpf) {
       const cpfClean = String(buyerInfo.cpf).replace(/\D/g, '');
       const validCpf = (cpf) => {

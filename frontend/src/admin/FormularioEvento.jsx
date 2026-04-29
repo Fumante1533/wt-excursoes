@@ -55,6 +55,26 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
   const addTicket = () => setTickets([...tickets, { type: "", price: "", quantity: "" }]);
   const removeTicket = (index) => setTickets(tickets.filter((_, i) => i !== index));
 
+  const duplicateTicket = (index) => {
+    const ticket = tickets[index];
+    // Tenta detectar o número do lote e incrementar
+    let nextType = ticket.type;
+    const batchMatch = ticket.type.match(/(\d+)[º°] Lote/i);
+    if (batchMatch) {
+      const nextNum = parseInt(batchMatch[1]) + 1;
+      nextType = ticket.type.replace(batchMatch[0], `${nextNum}º Lote`);
+    } else if (ticket.type) {
+      nextType = `${ticket.type} (Cópia)`;
+    }
+
+    setTickets([...tickets, { 
+      ...ticket, 
+      type: nextType,
+      // Se for um lote, sugere um aumento de 10% ou R$ 5
+      price: ticket.price ? (parseFloat(ticket.price) + 5).toString() : ""
+    }]);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -277,14 +297,24 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
                       className="bg-zinc-600 text-white"
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeTicket(index)}
-                    className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-                    title="Remover lote"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => duplicateTicket(index)}
+                      className="p-2 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 rounded-lg transition-colors"
+                      title="Duplicar como próximo lote"
+                    >
+                      <Sparkles size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeTicket(index)}
+                      className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Remover lote"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
