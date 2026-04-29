@@ -43,13 +43,14 @@ exports.createPreference = async (req, res) => {
       return res.status(503).json({ error: 'Pagamento não configurado no servidor.' });
     }
 
-    const { evento, ticket, buyerInfo, carInfo, additionalPassengers } = req.body || {};
+    const { evento, excursion, ticket, buyerInfo, carInfo, additionalPassengers } = req.body || {};
+    const targetExcursion = evento || excursion;
     const isGuest = !req.user;
     const uid = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` : req.user.uid;
     const tokenEmail = isGuest ? '' : (req.user.email || '').trim().toLowerCase();
 
-    if (!evento || !ticket) {
-      return res.status(400).json({ error: 'Dados da evento ou ingresso ausentes.' });
+    if (!targetExcursion || !ticket) {
+      return res.status(400).json({ error: 'Dados do evento ou ingresso ausentes.' });
     }
 
     if (!isGuest && tokenEmail && buyerInfo && buyerInfo.email) {
@@ -60,10 +61,10 @@ exports.createPreference = async (req, res) => {
     }
 
     const db = admin.firestore();
-    const eventoRef = await db.collection('eventos').doc(String(evento.id)).get();
-    if (!eventoRef.exists) return res.status(400).json({ error: 'Evento não encontrada.' });
+    const excursionRef = await db.collection('excursions').doc(String(targetExcursion.id)).get();
+    if (!excursionRef.exists) return res.status(400).json({ error: 'Evento não encontrado.' });
 
-    const eventoData = eventoRef.data();
+    const excursionData = excursionRef.data();
     const realTicketIndex = eventoData.tickets.findIndex((t) => t.type === ticket.type);
     const realTicket = realTicketIndex >= 0 ? eventoData.tickets[realTicketIndex] : null;
     if (!realTicket) return res.status(400).json({ error: 'Tipo de ingresso inválido.' });
@@ -96,10 +97,10 @@ exports.createPreference = async (req, res) => {
     const body = {
       items: [
         {
-          id: String(evento.id),
-          title: `${eventoData.name} (${ticket.type})`,
-          description: eventoData.location || "Evento",
-          picture_url: eventoData.image || undefined,
+          id: String(targetExcursion.id),
+          title: `${excursionData.name} (${ticket.type})`,
+          description: excursionData.location || "Evento",
+          picture_url: excursionData.image || undefined,
           quantity: totalQtyDemanded,
           currency_id: 'BRL',
           unit_price: Number(realPrice),
@@ -118,7 +119,7 @@ exports.createPreference = async (req, res) => {
       metadata: {
         user_id: uid,
         is_guest: String(isGuest),
-        evento_id: String(evento.id),
+        evento_id: String(targetExcursion.id),
         ticket_type: ticket.type,
         car_info: JSON.stringify(carInfo || {}),
         additional_passengers: additionalPassengers ? JSON.stringify(additionalPassengers).substring(0, 450) : "[]",
@@ -131,8 +132,8 @@ exports.createPreference = async (req, res) => {
       // Salva o pedido como PENDENTE para rastreio de Carrinho Abandonado
       const orderRef = db.collection('users').doc(uid).collection('orders').doc(String(response.id));
       await orderRef.set({
-        eventoId: evento.id,
-        eventoName: eventoData.name,
+        eventoId: targetExcursion.id,
+        eventoName: excursionData.name,
         ticketType: ticket.type,
         price: Number(realPrice) * totalQtyDemanded,
         status: 'Pendente',
@@ -280,7 +281,7 @@ exports.receiveWebhook = async (req, res) => {
       }
 
           if (eventoId) {
-            const eventoRef = db.collection('eventos').doc(String(eventoId));
+            const eventoRef = db.collection('excursions').doc(String(eventoId));
             const eventoSnap = await eventoRef.get();
             const totalTicketsBought = 1 + additionalPassengers.length;
             const updateData = { bookedSlots: admin.firestore.FieldValue.increment(totalTicketsBought) };
