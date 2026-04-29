@@ -10,6 +10,7 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
   const [image, setImage] = useState(initialData?.image || "");
   const [date, setDate] = useState(initialData?.date || "");
   const [salesStartAt, setSalesStartAt] = useState(initialData?.salesStartAt || "");
+  const [salesEndAt, setSalesEndAt] = useState(initialData?.salesEndAt || "");
   const [time, setTime] = useState(initialData?.time || "");
   const [timeEnd, setTimeEnd] = useState(initialData?.timeEnd || "");
   const [location, setLocation] = useState(initialData?.location || "");
@@ -120,7 +121,8 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
       description,
       image,
       date,
-      salesStartAt, // Adicionado
+      salesStartAt,
+      salesEndAt, // Adicionado
       time,
       timeEnd,
       location,
@@ -247,18 +249,30 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
             <option>Clássicos</option>
           </select>
 
-          <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl">
-            <label className="block text-sm font-bold text-violet-400 mb-2">📅 Agendar Abertura de Vendas (Opcional)</label>
-            <Input 
-              type="datetime-local" 
-              value={salesStartAt} 
-              onChange={(e) => setSalesStartAt(e.target.value)} 
-              className="bg-zinc-700 border-violet-500/30 focus:border-violet-500 h-12" 
-            />
-            <p className="text-[10px] text-zinc-500 mt-2 italic">
-              Se preenchido, o botão de compra só aparecerá no site após esta data.
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl">
+              <label className="block text-sm font-bold text-violet-400 mb-2">📅 Início das Vendas</label>
+              <Input 
+                type="datetime-local" 
+                value={salesStartAt} 
+                onChange={(e) => setSalesStartAt(e.target.value)} 
+                className="bg-zinc-700 border-violet-500/30 focus:border-violet-500 h-10" 
+              />
+            </div>
+
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+              <label className="block text-sm font-bold text-red-400 mb-2">🛑 Encerramento das Vendas</label>
+              <Input 
+                type="datetime-local" 
+                value={salesEndAt} 
+                onChange={(e) => setSalesEndAt(e.target.value)} 
+                className="bg-zinc-700 border-red-500/30 focus:border-red-500 h-10" 
+              />
+            </div>
           </div>
+          <p className="text-[10px] text-zinc-500 mt-1 italic text-center">
+            Configure as janelas de venda acima. Deixe em branco para vendas ilimitadas.
+          </p>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div>

@@ -402,23 +402,49 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                   <div className="mt-auto">
                     {(() => {
                       const salesStarted = !evento.salesStartAt || new Date(evento.salesStartAt) <= new Date();
-                      return !salesStarted ? (
-                        <div className="mb-8 p-6 bg-violet-500/10 border border-violet-500/20 rounded-3xl text-center">
-                          <p className="text-violet-500 dark:text-violet-400 font-black text-xl mb-2 flex items-center justify-center gap-2">
-                            <Clock size={24} /> VENDAS EM BREVE!
-                          </p>
-                          <p className="text-zinc-600 dark:text-zinc-400 font-medium">
-                            Este evento começará a vender ingressos em:
-                            <br />
-                            <span className="text-zinc-800 dark:text-white font-bold text-lg">
-                              {new Date(evento.salesStartAt).toLocaleString("pt-BR", {
-                                dateStyle: "short",
-                                timeStyle: "short"
-                              })}
-                            </span>
-                          </p>
-                        </div>
-                      ) : null;
+                      const salesEnded = evento.salesEndAt && new Date(evento.salesEndAt) <= new Date();
+                      
+                      if (!salesStarted) {
+                        return (
+                          <div className="mb-8 p-6 bg-violet-500/10 border border-violet-500/20 rounded-3xl text-center">
+                            <p className="text-violet-500 dark:text-violet-400 font-black text-xl mb-2 flex items-center justify-center gap-2">
+                              <Clock size={24} /> VENDAS EM BREVE!
+                            </p>
+                            <p className="text-zinc-600 dark:text-zinc-400 font-medium">
+                              Este evento começará a vender ingressos em:
+                              <br />
+                              <span className="text-zinc-800 dark:text-white font-bold text-lg">
+                                {new Date(evento.salesStartAt).toLocaleString("pt-BR", {
+                                  dateStyle: "short",
+                                  timeStyle: "short"
+                                })}
+                              </span>
+                            </p>
+                          </div>
+                        );
+                      }
+                      
+                      if (salesEnded) {
+                        return (
+                          <div className="mb-8 p-6 bg-red-500/10 border border-red-500/20 rounded-3xl text-center">
+                            <p className="text-red-500 dark:text-red-400 font-black text-xl mb-2 flex items-center justify-center gap-2">
+                              <XCircle size={24} /> VENDAS ENCERRADAS
+                            </p>
+                            <p className="text-zinc-600 dark:text-zinc-400 font-medium">
+                              O prazo para compra de ingressos online terminou em:
+                              <br />
+                              <span className="text-zinc-800 dark:text-white font-bold text-lg">
+                                {new Date(evento.salesEndAt).toLocaleString("pt-BR", {
+                                  dateStyle: "short",
+                                  timeStyle: "short"
+                                })}
+                              </span>
+                            </p>
+                          </div>
+                        );
+                      }
+                      
+                      return null;
                     })()}
                     
                     <h2 className="text-2xl font-bold text-zinc-700 dark:text-white mb-4">Tipos de Inscrição</h2>
@@ -488,14 +514,23 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                                       onNavigate.onAddToCart(evento, activeTicket);
                                     }
                                   }}
-                                  disabled={isSoldOut || (evento.salesStartAt && new Date(evento.salesStartAt) > new Date()) || typeof onNavigate.onAddToCart !== "function"}
+                                  disabled={
+                                    isSoldOut || 
+                                    (evento.salesStartAt && new Date(evento.salesStartAt) > new Date()) || 
+                                    (evento.salesEndAt && new Date(evento.salesEndAt) <= new Date()) ||
+                                    typeof onNavigate.onAddToCart !== "function"
+                                  }
                                   className={`w-full md:w-auto h-14 px-8 text-lg font-bold shadow-lg transition-all ${
-                                    isSoldOut || (evento.salesStartAt && new Date(evento.salesStartAt) > new Date())
+                                    isSoldOut || 
+                                    (evento.salesStartAt && new Date(evento.salesStartAt) > new Date()) ||
+                                    (evento.salesEndAt && new Date(evento.salesEndAt) <= new Date())
                                       ? "bg-zinc-400 dark:bg-zinc-600 cursor-not-allowed opacity-50" 
                                       : "bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 hover:scale-105"
                                   }`}
                                 >
-                                  {isSoldOut ? "Esgotado" : (evento.salesStartAt && new Date(evento.salesStartAt) > new Date()) ? (
+                                  {isSoldOut ? "Esgotado" : 
+                                   (evento.salesEndAt && new Date(evento.salesEndAt) <= new Date()) ? "Encerrado" :
+                                   (evento.salesStartAt && new Date(evento.salesStartAt) > new Date()) ? (
                                     <span className="flex items-center gap-2">
                                       Vendas em Breve <Clock size={20} />
                                     </span>
