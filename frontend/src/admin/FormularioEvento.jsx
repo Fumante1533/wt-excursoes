@@ -19,6 +19,16 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
   const [notIncluded, setNotIncluded] = useState(initialData?.notIncluded || [""]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [totalSlots, setTotalSlots] = useState(initialData?.totalSlots || "");
+  const [showBatchAssistant, setShowBatchAssistant] = useState(false);
+  const [batchConfig, setBatchConfig] = useState({
+    baseName: "Carro",
+    count: 3,
+    startPrice: 20,
+    increase: 10,
+    slotsPerBatch: 50
+  });
+  const [activeBatchToConfigure, setActiveBatchToConfigure] = useState(null);
+  const [configNewBatch, setConfigNewBatch] = useState({ type: "", price: "", quantity: "" });
 
   const handleGenerateDescription = async () => {
     if (!name) {
@@ -57,22 +67,41 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
 
   const duplicateTicket = (index) => {
     const ticket = tickets[index];
-    // Tenta detectar o número do lote e incrementar
     let nextType = ticket.type;
     const batchMatch = ticket.type.match(/(\d+)[º°] Lote/i);
     if (batchMatch) {
       const nextNum = parseInt(batchMatch[1]) + 1;
       nextType = ticket.type.replace(batchMatch[0], `${nextNum}º Lote`);
     } else if (ticket.type) {
-      nextType = `${ticket.type} (Cópia)`;
+      nextType = `${ticket.type} (Próximo Lote)`;
     }
 
-    setTickets([...tickets, { 
-      ...ticket, 
+    setConfigNewBatch({
       type: nextType,
-      // Se for um lote, sugere um aumento de 10% ou R$ 5
-      price: ticket.price ? (parseFloat(ticket.price) + 5).toString() : ""
-    }]);
+      price: ticket.price ? (parseFloat(ticket.price) + 5).toString() : "",
+      quantity: ticket.quantity || ""
+    });
+    setActiveBatchToConfigure(index);
+  };
+
+  const confirmNewBatch = () => {
+    setTickets([...tickets, configNewBatch]);
+    setActiveBatchToConfigure(null);
+  };
+
+  const generateAutomaticBatches = () => {
+    const newBatches = [];
+    for (let i = 1; i <= batchConfig.count; i++) {
+      const price = parseFloat(batchConfig.startPrice) + (parseFloat(batchConfig.increase) * (i - 1));
+      newBatches.push({
+        type: `${batchConfig.baseName} - ${i}º Lote`,
+        price: price.toString(),
+        quantity: batchConfig.slotsPerBatch.toString()
+      });
+    }
+    // Adiciona ao final da lista atual
+    setTickets([...tickets, ...newBatches]);
+    setShowBatchAssistant(false);
   };
 
   const handleSubmit = async (e) => {
@@ -257,21 +286,107 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
           </div>
         </div>
         <div>
-          <h3 className="text-xl font-bold text-white mb-4">Inscrições</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-white">Inscrições / Lotes</h3>
+            <button
+              type="button"
+              onClick={() => setShowBatchAssistant(!showBatchAssistant)}
+              className="text-sm bg-violet-600/20 text-violet-400 hover:bg-violet-600/40 px-3 py-1.5 rounded-lg border border-violet-500/30 transition-all flex items-center gap-2"
+            >
+              <Sparkles size={16} /> Assistente de Lotes
+            </button>
+          </div>
+
+          {showBatchAssistant && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              className="mb-6 p-6 bg-violet-950/20 border-2 border-violet-500/20 rounded-2xl space-y-4"
+            >
+              <div className="flex items-center gap-2 text-violet-400 mb-2">
+                <Sparkles size={20} />
+                <span className="font-bold uppercase text-xs tracking-wider">Configurador de Lotes Automáticos</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div>
+                  <label className="text-[10px] uppercase text-zinc-400 font-bold mb-1 block">Nome Base</label>
+                  <Input 
+                    value={batchConfig.baseName} 
+                    onChange={e => setBatchConfig({...batchConfig, baseName: e.target.value})}
+                    placeholder="Ex: Carro"
+                    className="bg-zinc-800 border-zinc-700"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase text-zinc-400 font-bold mb-1 block">Qtd Lotes</label>
+                  <Input 
+                    type="number"
+                    value={batchConfig.count} 
+                    onChange={e => setBatchConfig({...batchConfig, count: e.target.value})}
+                    className="bg-zinc-800 border-zinc-700"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase text-zinc-400 font-bold mb-1 block">Preço Inicial</label>
+                  <Input 
+                    type="number"
+                    value={batchConfig.startPrice} 
+                    onChange={e => setBatchConfig({...batchConfig, startPrice: e.target.value})}
+                    className="bg-zinc-800 border-zinc-700"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase text-zinc-400 font-bold mb-1 block">Sobe (+ R$)</label>
+                  <Input 
+                    type="number"
+                    value={batchConfig.increase} 
+                    onChange={e => setBatchConfig({...batchConfig, increase: e.target.value})}
+                    className="bg-zinc-800 border-zinc-700"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase text-zinc-400 font-bold mb-1 block">Vagas/Lote</label>
+                  <Input 
+                    type="number"
+                    value={batchConfig.slotsPerBatch} 
+                    onChange={e => setBatchConfig({...batchConfig, slotsPerBatch: e.target.value})}
+                    className="bg-zinc-800 border-zinc-700"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShowBatchAssistant(false)}
+                  className="text-xs text-zinc-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button"
+                  onClick={generateAutomaticBatches}
+                  className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all"
+                >
+                  Gerar Lotes Agora
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           <div className="space-y-4">
             {tickets.map((ticket, index) => (
               <div key={index} className="p-4 bg-zinc-700/50 rounded-lg border border-zinc-600">
                 <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-3 items-end">
-                  <div>
-                    <label className="text-xs text-zinc-400 mb-1 block">Tipo / Nome do Lote</label>
-                    <Input
-                      placeholder="Ex: Moto - 1º Lote"
-                      value={ticket.type}
-                      onChange={(e) => handleTicketChange(index, "type", e.target.value)}
-                      className="bg-zinc-600 text-white"
-                      required
-                    />
-                  </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-zinc-400 mb-1 block">Tipo / Nome do Ingresso</label>
+                      <Input
+                        placeholder="Ex: Carro"
+                        value={ticket.type}
+                        onChange={(e) => handleTicketChange(index, "type", e.target.value)}
+                        className="bg-zinc-600 text-white font-bold"
+                        required
+                      />
+                    </div>
                   <div>
                     <label className="text-xs text-zinc-400 mb-1 block">Preço (R$)</label>
                     <Input
@@ -301,18 +416,17 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
                     <button
                       type="button"
                       onClick={() => duplicateTicket(index)}
-                      className="p-2 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 rounded-lg transition-colors"
-                      title="Duplicar como próximo lote"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 text-violet-400 hover:bg-violet-600/40 rounded-lg border border-violet-500/30 transition-all text-[10px] font-bold uppercase whitespace-nowrap"
                     >
-                      <Sparkles size={18} />
+                      <Sparkles size={14} /> Próximo Lote
                     </button>
                     <button
                       type="button"
                       onClick={() => removeTicket(index)}
-                      className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-                      title="Remover lote"
+                      className="flex items-center justify-center p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
+                      title="Remover"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
@@ -323,15 +437,85 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
             Adicionar Inscrição
           </Button>
         </div>
-        <div className="flex justify-end gap-4 pt-4 border-t border-zinc-700">
-          <Button type="button" variant="secondary" onClick={() => onCancel?.()}>
-            Cancelar
-          </Button>
-          <Button type="submit">
-            {initialData ? "Salvar Alterações" : "Cadastrar Evento"}
-          </Button>
-        </div>
-      </form>
-    </motion.div>
+          <div className="flex justify-end gap-4 pt-4 border-t border-zinc-700">
+            <Button type="button" variant="secondary" onClick={() => onCancel?.()}>
+              Cancelar
+            </Button>
+            <Button type="submit">
+              {initialData ? "Salvar Alterações" : "Cadastrar Evento"}
+            </Button>
+          </div>
+        </form>
+
+        {/* Modal de Configuração de Lote */}
+        {activeBatchToConfigure !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-zinc-900 border border-violet-500/30 p-8 rounded-3xl shadow-2xl max-w-md w-full space-y-6"
+            >
+              <div className="flex items-center gap-3 text-violet-400">
+                <div className="p-3 bg-violet-500/10 rounded-2xl">
+                  <Sparkles size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Configurar Próximo Lote</h3>
+                  <p className="text-xs text-zinc-400">Personalize os detalhes antes de adicionar</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Nome do Lote</label>
+                  <Input 
+                    value={configNewBatch.type} 
+                    onChange={e => setConfigNewBatch({...configNewBatch, type: e.target.value})}
+                    className="bg-zinc-800 border-zinc-700 h-12"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Preço (R$)</label>
+                    <Input 
+                      type="number"
+                      value={configNewBatch.price} 
+                      onChange={e => setConfigNewBatch({...configNewBatch, price: e.target.value})}
+                      className="bg-zinc-800 border-zinc-700 h-12"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Vagas</label>
+                    <Input 
+                      type="number"
+                      placeholder="Ilimitado"
+                      value={configNewBatch.quantity} 
+                      onChange={e => setConfigNewBatch({...configNewBatch, quantity: e.target.value})}
+                      className="bg-zinc-800 border-zinc-700 h-12"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="button"
+                  onClick={() => setActiveBatchToConfigure(null)}
+                  className="flex-1 px-4 py-3 bg-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-all font-bold"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button"
+                  onClick={confirmNewBatch}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl shadow-lg shadow-violet-500/20 transition-all font-bold"
+                >
+                  Adicionar Lote
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </motion.div>
   );
 }
