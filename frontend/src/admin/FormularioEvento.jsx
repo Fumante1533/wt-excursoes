@@ -68,12 +68,18 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
   const duplicateTicket = (index) => {
     const ticket = tickets[index];
     let nextType = ticket.type;
+    
+    // Tenta detectar se já existe um número de lote (ex: 1º Lote, 2º Lote)
     const batchMatch = ticket.type.match(/(\d+)[º°] Lote/i);
+    
     if (batchMatch) {
+      // Se já tem um lote, incrementa o número
       const nextNum = parseInt(batchMatch[1]) + 1;
       nextType = ticket.type.replace(batchMatch[0], `${nextNum}º Lote`);
     } else if (ticket.type) {
-      nextType = `${ticket.type} (Próximo Lote)`;
+      // Se não tem lote ainda (ex: "Carro"), adiciona " - 2º Lote"
+      // (Considerando que o primeiro é o 1º Lote implicitamente)
+      nextType = `${ticket.type} - 2º Lote`;
     }
 
     setConfigNewBatch({
