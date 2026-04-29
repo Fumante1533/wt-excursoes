@@ -1,6 +1,6 @@
 // src/admin/BlogManagement.jsx
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 const BlogManagement = ({ db }) => {
     const [posts, setPosts] = useState([]);
@@ -29,7 +29,6 @@ const BlogManagement = ({ db }) => {
         };
 
         if (editingPost) {
-            const { doc, updateDoc } = await import('firebase/firestore');
             await updateDoc(doc(db, 'blogPosts', editingPost.id), postData);
             setEditingPost(null);
         } else {
@@ -56,7 +55,6 @@ const BlogManagement = ({ db }) => {
 
     const handleDelete = async (id) => {
         if (window.confirm("Tem certeza que deseja excluir este post?")) {
-            const { doc, deleteDoc } = await import('firebase/firestore');
             await deleteDoc(doc(db, 'blogPosts', id));
         }
     };
