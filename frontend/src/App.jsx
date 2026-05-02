@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
 import { XCircle } from "lucide-react";
 import { signOut, onAuthStateChanged, getIdTokenResult } from "firebase/auth";
 import { 
@@ -48,9 +49,11 @@ import { initialBlogPosts } from "./data/initialBlogPosts";
 import { initialFaqs } from "./data/initialFaqs";
 import { initMercadoPago } from "@mercadopago/sdk-react";
 import { loadStripe } from "@stripe/stripe-js";
-import { AnimatePresence } from "framer-motion";
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "";
+// Credenciais de admin — lidas do .env, NUNCA hardcoded aqui
+const ADMIN_EMAIL    = (import.meta.env.VITE_ADMIN_EMAIL   || "").trim().toLowerCase();
+const ADMIN_EMAIL_2  = (import.meta.env.VITE_ADMIN_EMAIL_2 || "").trim().toLowerCase();
+const ADMIN_UID      = (import.meta.env.VITE_ADMIN_UID     || "").trim();
 
 const MP_PUBLIC_KEY = import.meta.env.VITE_MP_PUBLIC_KEY;
 try {
@@ -131,9 +134,9 @@ export default function App() {
                       const idResult = await getIdTokenResult(currentUser);
                       const isAdminClaim = !!(idResult && idResult.claims && idResult.claims.admin);
                       const currentEmail = currentUser && currentUser.email ? currentUser.email.trim().toLowerCase() : "";
-                      const normalizedAdmin = (ADMIN_EMAIL || "itacars237@admin.com").trim().toLowerCase();
-                      const secondaryAdmin = "aryelgamerbrs2@gmail.com";
-                      const emailAdmin = !!(normalizedAdmin && currentEmail === normalizedAdmin) || currentEmail === secondaryAdmin;
+                      const emailAdmin = !!(ADMIN_EMAIL && currentEmail === ADMIN_EMAIL)
+                        || !!(ADMIN_EMAIL_2 && currentEmail === ADMIN_EMAIL_2)
+                        || !!(ADMIN_UID && currentUser.uid === ADMIN_UID);
                       setIsAdmin(isAdminClaim);
                       setIsAdminUi(isAdminClaim || emailAdmin);
                     } catch (err) {
@@ -198,9 +201,9 @@ export default function App() {
           const idResult = await getIdTokenResult(currentUser);
           const isAdminClaim = !!(idResult && idResult.claims && idResult.claims.admin);
           const currentEmail = currentUser && currentUser.email ? currentUser.email.trim().toLowerCase() : "";
-          const normalizedAdmin = (ADMIN_EMAIL || "itacars237@admin.com").trim().toLowerCase();
-          const secondaryAdmin = "aryelgamerbrs2@gmail.com";
-          const emailAdmin = !!(normalizedAdmin && currentEmail === normalizedAdmin) || currentEmail === secondaryAdmin;
+          const emailAdmin = !!(ADMIN_EMAIL && currentEmail === ADMIN_EMAIL)
+            || !!(ADMIN_EMAIL_2 && currentEmail === ADMIN_EMAIL_2)
+            || !!(ADMIN_UID && currentUser.uid === ADMIN_UID);
           setIsAdmin(isAdminClaim);
           setIsAdminUi(isAdminClaim || emailAdmin);
           if (isAdminClaim || emailAdmin) {
@@ -336,9 +339,9 @@ export default function App() {
             const idResult = await getIdTokenResult(currentUser);
             const isAdminClaim = !!(idResult && idResult.claims && idResult.claims.admin);
             const currentEmail = (currentUser.email || "").trim().toLowerCase();
-            const normalizedAdmin = (ADMIN_EMAIL || "itacars237@admin.com").trim().toLowerCase();
-            const secondaryAdmin = "aryelgamerbrs2@gmail.com";
-            const emailAdmin = !!(normalizedAdmin && currentEmail === normalizedAdmin) || currentEmail === secondaryAdmin;
+            const emailAdmin = !!(ADMIN_EMAIL && currentEmail === ADMIN_EMAIL)
+              || !!(ADMIN_EMAIL_2 && currentEmail === ADMIN_EMAIL_2)
+              || !!(ADMIN_UID && currentUser.uid === ADMIN_UID);
             setIsAdmin(isAdminClaim);
             setIsAdminUi(isAdminClaim || emailAdmin);
           } catch (err) {
