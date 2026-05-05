@@ -389,7 +389,7 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                     <span className="flex items-center whitespace-nowrap"><Clock size={18} className="ml-6 mr-2 text-yellow-500" /> {evento.time} {evento.timeEnd && `às ${evento.timeEnd}`}</span>
                   )}
                 </div>
-                <p className="text-zinc-600 dark:text-zinc-300 mb-8 flex-grow">{evento.description}</p>
+                <p className="text-zinc-600 dark:text-zinc-300 mb-8 flex-grow whitespace-pre-wrap">{evento.description}</p>
                 {remainingSlots !== null && (
                   <div className="mb-6 p-3 bg-blue-50 dark:bg-zinc-800 rounded-lg text-center">
                     <p className="font-bold text-blue-600 dark:text-blue-400">
