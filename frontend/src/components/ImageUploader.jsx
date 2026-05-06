@@ -5,7 +5,13 @@ import { storage } from "../firebaseConfig";
 import { Input, Button, Spinner } from "./AppPrimitives";
 import { toast } from "react-hot-toast";
 
-export const ImageUploader = ({ value, onChange, placeholder = "URL da Imagem ou faça Upload", className = "" }) => {
+export const ImageUploader = ({ 
+  value, 
+  onChange, 
+  placeholder = "URL da Imagem ou faça Upload", 
+  className = "",
+  uploadPath = "uploads" // Default path, but can be overridden
+}) => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -24,7 +30,7 @@ export const ImageUploader = ({ value, onChange, placeholder = "URL da Imagem ou
 
     try {
       // Create a unique filename
-      const filename = `uploads/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+      const filename = `${uploadPath}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
       const storageRef = ref(storage, filename);
       
       const snapshot = await uploadBytes(storageRef, file);

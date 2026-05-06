@@ -163,6 +163,7 @@ function ModalFormularioCarro({ isOpen, onClose, onSave, car, user }) {
             value={photoURL}
             onChange={setPhotoURL}
             placeholder="URL da imagem ou faça upload"
+            uploadPath={`users/${user.uid}/cars`}
           />
         </div>
         <div className="flex justify-end gap-4 pt-4">

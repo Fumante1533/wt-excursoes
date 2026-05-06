@@ -75,6 +75,7 @@ const BlogManagement = ({ db }) => {
                     value={imageUrl} 
                     onChange={setImageUrl} 
                     placeholder="URL da Imagem de Capa ou faça upload" 
+                    uploadPath="eventos"
                 />
                 <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="Conteúdo do post (Markdown ou Texto)..." rows="8" className="w-full bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600 focus:border-violet-500 outline-none" required></textarea>
                 

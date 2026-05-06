@@ -184,6 +184,7 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
           value={image}
           onChange={(url) => setImage(url)}
           className="mb-4"
+          uploadPath="eventos"
         />
         {image && (
           <div className="space-y-2">

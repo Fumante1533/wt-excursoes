@@ -132,6 +132,7 @@ export default function SponsorManagement({ db }) {
                 value={form.logoUrl} 
                 onChange={(url) => setForm({ ...form, logoUrl: url })} 
                 placeholder="https://... ou faça upload" 
+                uploadPath="eventos"
               />
             </div>
             <div>
