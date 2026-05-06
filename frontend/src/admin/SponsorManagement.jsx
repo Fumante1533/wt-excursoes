@@ -6,6 +6,7 @@ import {
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { Button } from "../components/AppPrimitives";
+import { ImageUploader } from "../components/ImageUploader";
 
 export default function SponsorManagement({ db }) {
   const [sponsors, setSponsors] = useState([]);
@@ -125,9 +126,13 @@ export default function SponsorManagement({ db }) {
                 {categories.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-sm text-zinc-400 mb-1">URL do Logo</label>
-              <input className={inputClass} placeholder="https://..." value={form.logoUrl} onChange={(e) => setForm({ ...form, logoUrl: e.target.value })} />
+            <div className="md:col-span-2">
+              <label className="block text-sm text-zinc-400 mb-1">URL do Logo ou Imagem</label>
+              <ImageUploader 
+                value={form.logoUrl} 
+                onChange={(url) => setForm({ ...form, logoUrl: url })} 
+                placeholder="https://... ou faça upload" 
+              />
             </div>
             <div>
               <label className="block text-sm text-zinc-400 mb-1">Website</label>

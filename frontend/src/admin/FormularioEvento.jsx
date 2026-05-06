@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, MinusCircle, Trash2 } from "lucide-react";
 import { Button, Input, Spinner } from "../components/AppPrimitives";
+import { ImageUploader } from "../components/ImageUploader";
 import { callGeminiAPI } from "../services/geminiMockService";
 
 export default function FormularioEvento({ onSave, initialData, onCancel }) {
@@ -178,12 +179,11 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
             required
           />
         </div>
-        <Input
-          placeholder="URL da Imagem Principal"
+        <ImageUploader
+          placeholder="URL da Imagem Principal ou faça Upload"
           value={image}
-          onChange={(e) => setImage(e.target.value)}
-          className="bg-zinc-700 text-white border-zinc-600"
-          required
+          onChange={(url) => setImage(url)}
+          className="mb-4"
         />
         {image && (
           <div className="space-y-2">

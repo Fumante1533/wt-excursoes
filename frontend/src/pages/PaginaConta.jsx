@@ -19,6 +19,7 @@ import PurchaseCardSkeleton from "../components/PurchaseCardSkeleton";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
 import { CartaoEvento } from "../components/CartaoEvento";
 import CaixaDialogo from "../components/CaixaDialogo";
+import { ImageUploader } from "../components/ImageUploader";
 
 function PerfilUsuario({ user, db: firestore }) {
   const [profile, setProfile] = useState(null);
@@ -143,44 +144,11 @@ function ModalFormularioCarro({ isOpen, onClose, onSave, car, user }) {
     setModel(car?.model || "");
     setYear(car?.year || "");
     setPhotoURL(car?.photoURL || "");
-    setFile(null);
-    setUploadProgress(0);
-    setIsUploading(false);
   }, [car, isOpen]);
-
-  const handleFileChange = (e) => {
-    if (e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    let uploadedPhotoURL = car?.photoURL || photoURL;
-
-    if (file) {
-      setIsUploading(true);
-      const filePath = `users/${user.uid}/cars/${Date.now()}-${file.name}`;
-      const storageRef = ref(storage, filePath);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      await new Promise((resolve, reject) => {
-        uploadTask.on(
-          "state_changed",
-          (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-          (error) => {
-            console.error(error);
-            reject(error);
-          },
-          async () => {
-            uploadedPhotoURL = await getDownloadURL(uploadTask.snapshot.ref);
-            resolve();
-          }
-        );
-      });
-    }
-
-    onSave({ make, model, year, photoURL: uploadedPhotoURL });
+    onSave({ make, model, year, photoURL });
   };
 
   return (
@@ -189,21 +157,20 @@ function ModalFormularioCarro({ isOpen, onClose, onSave, car, user }) {
         <Input placeholder="Marca (ex: Volkswagen)" value={make} onChange={(e) => setMake(e.target.value)} required />
         <Input placeholder="Modelo (ex: Golf GTI)" value={model} onChange={(e) => setModel(e.target.value)} required />
         <Input type="number" placeholder="Ano (ex: 2022)" value={year} onChange={(e) => setYear(e.target.value)} required />
-        <Input type="file" accept="image/*" onChange={handleFileChange} />
-        {isUploading && (
-          <div className="w-full bg-zinc-700 rounded-full h-2.5">
-            <div className="bg-yellow-500 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
-          </div>
-        )}
-        {!isUploading && (photoURL || file) && (
-          <img src={file ? URL.createObjectURL(file) : photoURL} alt="Preview" className="w-full h-40 object-cover rounded-md" />
-        )}
+        <div className="mt-2 mb-2">
+          <label className="block text-sm font-semibold text-zinc-500 mb-2">Foto do Veículo</label>
+          <ImageUploader
+            value={photoURL}
+            onChange={setPhotoURL}
+            placeholder="URL da imagem ou faça upload"
+          />
+        </div>
         <div className="flex justify-end gap-4 pt-4">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isUploading}>
-            {isUploading ? "Enviando..." : "Salvar"}
+          <Button type="submit">
+            Salvar
           </Button>
         </div>
       </form>

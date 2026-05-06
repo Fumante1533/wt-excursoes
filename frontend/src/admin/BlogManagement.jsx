@@ -1,6 +1,7 @@
 // src/admin/BlogManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { ImageUploader } from '../components/ImageUploader';
 
 const BlogManagement = ({ db }) => {
     const [posts, setPosts] = useState([]);
@@ -70,7 +71,11 @@ const BlogManagement = ({ db }) => {
                     <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título" className="bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600 focus:border-violet-500 outline-none" required />
                     <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Autor" className="bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600 focus:border-violet-500 outline-none" required />
                 </div>
-                <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="URL da Imagem de Capa" className="w-full bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600 focus:border-violet-500 outline-none" required />
+                <ImageUploader 
+                    value={imageUrl} 
+                    onChange={setImageUrl} 
+                    placeholder="URL da Imagem de Capa ou faça upload" 
+                />
                 <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="Conteúdo do post (Markdown ou Texto)..." rows="8" className="w-full bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600 focus:border-violet-500 outline-none" required></textarea>
                 
                 <div className="flex gap-4">
