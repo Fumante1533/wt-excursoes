@@ -249,30 +249,32 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
             <option>Clássicos</option>
           </select>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl">
-              <label className="block text-sm font-bold text-violet-400 mb-2">📅 Início das Vendas</label>
-              <Input 
-                type="datetime-local" 
-                value={salesStartAt} 
-                onChange={(e) => setSalesStartAt(e.target.value)} 
-                className="bg-zinc-700 border-violet-500/30 focus:border-violet-500 h-10" 
-              />
-            </div>
+          <div className="md:col-span-2 lg:col-span-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl">
+                <label className="block text-sm font-bold text-violet-400 mb-2 flex items-center gap-2">📅 Início das Vendas</label>
+                <Input 
+                  type="datetime-local" 
+                  value={salesStartAt} 
+                  onChange={(e) => setSalesStartAt(e.target.value)} 
+                  className="bg-zinc-700 border-violet-500/30 focus:border-violet-500 h-10 w-full" 
+                />
+              </div>
 
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-              <label className="block text-sm font-bold text-red-400 mb-2">🛑 Encerramento das Vendas</label>
-              <Input 
-                type="datetime-local" 
-                value={salesEndAt} 
-                onChange={(e) => setSalesEndAt(e.target.value)} 
-                className="bg-zinc-700 border-red-500/30 focus:border-red-500 h-10" 
-              />
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                <label className="block text-sm font-bold text-red-400 mb-2 flex items-center gap-2">🛑 Encerramento das Vendas</label>
+                <Input 
+                  type="datetime-local" 
+                  value={salesEndAt} 
+                  onChange={(e) => setSalesEndAt(e.target.value)} 
+                  className="bg-zinc-700 border-red-500/30 focus:border-red-500 h-10 w-full" 
+                />
+              </div>
             </div>
+            <p className="text-[11px] text-zinc-500 mt-2 italic text-center w-full block">
+              Configure as janelas de venda acima. Deixe em branco para vendas ilimitadas.
+            </p>
           </div>
-          <p className="text-[10px] text-zinc-500 mt-1 italic text-center">
-            Configure as janelas de venda acima. Deixe em branco para vendas ilimitadas.
-          </p>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
