@@ -16,6 +16,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { Toaster, toast } from "react-hot-toast";
+import { logActivity } from "./utils/ActivityLogger";
 import { auth, db, firebaseConfigError } from "./firebaseConfig";
 import PaginaBlog from "./pages/PaginaBlog";
 import PaginaPostBlog from "./pages/PaginaPostBlog";
@@ -441,6 +442,8 @@ const addEvento = async (newEventoData) => {
         };
 
         await setDoc(docRef, { id: docRef.id }, { merge: true });
+        
+        await logActivity(auth.currentUser?.email, "CRIAR_EVENTO", `Criou evento: ${newEventoData.name}`);
 
         toast.success(`Evento "${newEventoData.name}" criado com sucesso! ID: ${docRef.id}`);
 
@@ -460,6 +463,7 @@ const updateEvento = async (updatedEventoData) => {
     const { id, ...data } = updatedEventoData;
     const excursionsDocRef = doc(db, "excursions", String(id));
     await setDoc(excursionsDocRef, data, { merge: true });
+    await logActivity(auth.currentUser?.email, "EDITAR_EVENTO", `Editou evento: ${data.name || id}`);
 };
 
 const deleteEvento = async (id) => {
@@ -479,6 +483,7 @@ const deleteEvento = async (id) => {
     try {
       const excursionsDocRef = doc(db, "excursions", stringId);
         await deleteDoc(excursionsDocRef);
+        await logActivity(auth.currentUser?.email, "EXCLUIR_EVENTO", `Excluiu evento ID: ${stringId}`);
         toast.success("Evento excluído!");
     } catch (error) {
         console.error("Erro ao excluir evento:", error);

@@ -1,6 +1,8 @@
 // src/admin/BlogManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { auth } from '../firebaseConfig';
+import { logActivity } from '../utils/ActivityLogger';
 import { ImageUploader } from '../components/ImageUploader';
 
 const BlogManagement = ({ db }) => {
@@ -31,12 +33,14 @@ const BlogManagement = ({ db }) => {
 
         if (editingPost) {
             await updateDoc(doc(db, 'blogPosts', editingPost.id), postData);
+            logActivity(auth.currentUser?.email, "EDITAR_POST", `Editou post: ${postData.title}`);
             setEditingPost(null);
         } else {
             await addDoc(collection(db, 'blogPosts'), {
                 ...postData,
                 createdAt: serverTimestamp(),
             });
+            logActivity(auth.currentUser?.email, "CRIAR_POST", `Adicionou post: ${postData.title}`);
         }
         
         setTitle('');
@@ -57,6 +61,7 @@ const BlogManagement = ({ db }) => {
     const handleDelete = async (id) => {
         if (window.confirm("Tem certeza que deseja excluir este post?")) {
             await deleteDoc(doc(db, 'blogPosts', id));
+            logActivity(auth.currentUser?.email, "EXCLUIR_POST", `Excluiu post ID: ${id}`);
         }
     };
 

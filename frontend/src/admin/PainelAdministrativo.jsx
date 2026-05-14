@@ -26,6 +26,7 @@ import UserManagement from "./UserManagement";
 import CouponManagement from "./CouponManagement";
 import BlogManagement from "./BlogManagement";
 import SponsorManagement from "./SponsorManagement";
+import ActivityLogsView from "./ActivityLogsView";
 import EmissaoIngressoManual from "./EmissaoIngressoManual";
 import { Button } from "../components/AppPrimitives";
 import CaixaDialogo from "../components/CaixaDialogo";
@@ -491,6 +492,8 @@ export default function PainelAdministrativo({
         return <SponsorManagement db={db} />;
       case "issueTicket":
         return <EmissaoIngressoManual eventos={eventos} />;
+      case "logs":
+        return <ActivityLogsView db={db} />;
       default:
         return null;
     }
@@ -507,6 +510,7 @@ export default function PainelAdministrativo({
     { id: "coupons", label: "Cupons", icon: Tag },
     { id: "sponsors", label: "Parceiros", icon: DollarSign },
     { id: "blog", label: "Blog", icon: FileText },
+    { id: "logs", label: "Logs", icon: FileText },
   ];
 
   const SidebarContent = () => (

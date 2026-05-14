@@ -12,6 +12,7 @@ import {
 import { collectionGroup, limit, getDocs, query, orderBy } from "firebase/firestore";
 import { Button, Spinner, PageWrapper, Card } from "../components/AppPrimitives";
 import { CartaoEvento, EsqueletoCartaoEvento } from "../components/CartaoEvento";
+import CountdownProximaExcursao from "../components/CountdownProximaExcursao";
 
 export default function PaginaInicial({ onNavigate, eventos, user, db }) {
   const upcomingEvents = eventos
@@ -110,6 +111,8 @@ export default function PaginaInicial({ onNavigate, eventos, user, db }) {
       </section>
 
       {nextEvent && (
+        <>
+        <CountdownProximaExcursao excursion={nextEvent} onNavigate={onNavigate} />
         <section className="py-20 bg-zinc-900 text-white" data-has-aurora>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-4xl md:text-5xl font-bold text-center mb-4">

@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
+import { auth } from "../firebaseConfig";
+import { logActivity } from "../utils/ActivityLogger";
 import { Button } from "../components/AppPrimitives";
 import { ImageUploader } from "../components/ImageUploader";
 
@@ -64,9 +66,11 @@ export default function SponsorManagement({ db }) {
     try {
       if (editingId) {
         await updateDoc(doc(db, "sponsors", editingId), { ...form, updatedAt: serverTimestamp() });
+        logActivity(auth.currentUser?.email, "EDITAR_PARCEIRO", `Editou parceiro: ${form.name}`);
         toast.success("Parceiro atualizado!");
       } else {
         await addDoc(collection(db, "sponsors"), { ...form, createdAt: serverTimestamp() });
+        logActivity(auth.currentUser?.email, "CRIAR_PARCEIRO", `Adicionou parceiro: ${form.name}`);
         toast.success("Parceiro adicionado!");
       }
       resetForm();
@@ -80,6 +84,7 @@ export default function SponsorManagement({ db }) {
     if (!window.confirm("Remover este parceiro?")) return;
     try {
       await deleteDoc(doc(db, "sponsors", id));
+      logActivity(auth.currentUser?.email, "EXCLUIR_PARCEIRO", `Excluiu parceiro ID: ${id}`);
       toast.success("Parceiro removido.");
     } catch (err) {
       toast.error("Erro ao remover.");
