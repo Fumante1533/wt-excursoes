@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { MessageSquare, Users, Car } from "lucide-react";
+import { Car } from "lucide-react";
 import { Wallet } from "@mercadopago/sdk-react";
 import { db, auth } from "../firebaseConfig";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
@@ -58,7 +58,9 @@ export default function PaginaCheckout({ cart, user }) {
           if (currentUser && typeof currentUser.getIdToken === "function") {
             token = await currentUser.getIdToken();
           }
-        } catch (e) {}
+        } catch (tokenErr) {
+          console.warn("Não foi possível obter token para consultar o Pix:", tokenErr);
+        }
 
         const response = await fetch(`${backendUrl}/api/payment/confirm`, {
           method: "POST",
@@ -298,7 +300,7 @@ export default function PaginaCheckout({ cart, user }) {
       const payload = {
         evento: firstItem.evento,
         excursion: firstItem.evento, // Para compatibilidade legada
-        ticket: { ...firstItem.ticket, price: totalPrice },
+        ticket: { type: firstItem.ticket.type },
         buyerInfo,
         couponCode: couponDetails ? couponDetails.code : undefined,
         carInfo: {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Link2, Phone, Instagram, Facebook, ExternalLink } from "lucide-react";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { Building2, Phone, Instagram, ExternalLink } from "lucide-react";
+import { collection, onSnapshot } from "firebase/firestore";
 import { PageWrapper } from "../components/AppPrimitives";
 import { db } from "../firebaseConfig";
 
@@ -13,7 +13,7 @@ const categoryStyle = {
   "Parceiro":            "bg-zinc-700/50 border-zinc-600/40 text-zinc-300",
 };
 
-export default function PaginaParceiros({ onNavigate }) {
+export default function PaginaParceiros() {
   const [sponsors, setSponsors] = useState([]);
   const [loading, setLoading] = useState(true);
 

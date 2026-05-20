@@ -119,6 +119,7 @@ export default function PaginaAutenticacao({ onLoginSuccess }) {
 
       onLoginSuccess(result.user);
     } catch (err) {
+      console.error("Erro ao autenticar com o Google:", err);
       setError("Erro ao autenticar com o Google.");
       setIsLoading(false);
     }

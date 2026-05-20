@@ -8,7 +8,6 @@ import {
   doc,
   setDoc,
   addDoc,
-  updateDoc,
   deleteDoc,
   query,
   orderBy,
@@ -70,7 +69,6 @@ try {
 export default function App() {
   const [page, setPage] = useState("home");
   const [pageData, setPageData] = useState({});
-  const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminUi, setIsAdminUi] = useState(false);
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
@@ -138,13 +136,11 @@ export default function App() {
                       const emailAdmin = !!(ADMIN_EMAIL && currentEmail === ADMIN_EMAIL)
                         || !!(ADMIN_EMAIL_2 && currentEmail === ADMIN_EMAIL_2)
                         || !!(ADMIN_UID && currentUser.uid === ADMIN_UID);
-                      setIsAdmin(isAdminClaim);
                       setIsAdminUi(isAdminClaim || emailAdmin);
                     } catch (err) {
                 console.warn("getIdTokenResult falhou, usando verificação por email como fallback:", err);
                 const currentEmail = currentUser && currentUser.email ? currentUser.email.trim().toLowerCase() : "";
                 const normalizedAdmin = (ADMIN_EMAIL || "").trim().toLowerCase();
-                setIsAdmin(false);
                 setIsAdminUi(!!(normalizedAdmin && currentEmail === normalizedAdmin));
               }
 
@@ -174,7 +170,6 @@ export default function App() {
                       console.warn("Erro ao lidar com dados de usuário:", err);
                     }
                   } else {
-                    setIsAdmin(false);
                     setIsAdminUi(false);
                   }
                 } finally {
@@ -205,7 +200,6 @@ export default function App() {
           const emailAdmin = !!(ADMIN_EMAIL && currentEmail === ADMIN_EMAIL)
             || !!(ADMIN_EMAIL_2 && currentEmail === ADMIN_EMAIL_2)
             || !!(ADMIN_UID && currentUser.uid === ADMIN_UID);
-          setIsAdmin(isAdminClaim);
           setIsAdminUi(isAdminClaim || emailAdmin);
           if (isAdminClaim || emailAdmin) {
             setPage("adminDashboard");
@@ -343,7 +337,6 @@ export default function App() {
             const emailAdmin = !!(ADMIN_EMAIL && currentEmail === ADMIN_EMAIL)
               || !!(ADMIN_EMAIL_2 && currentEmail === ADMIN_EMAIL_2)
               || !!(ADMIN_UID && currentUser.uid === ADMIN_UID);
-            setIsAdmin(isAdminClaim);
             setIsAdminUi(isAdminClaim || emailAdmin);
           } catch (err) {
             console.warn("Falha ao ler claims após refresh:", err);
@@ -418,7 +411,6 @@ export default function App() {
     if (!auth) return;
     await signOut(auth);
     setUser(null);
-    setIsAdmin(false);
     setIsAdminUi(false);
     handleNavigate("home");
   };

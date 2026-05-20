@@ -7,6 +7,8 @@ const express = require('express');
 const router = express.Router();
 const verifyFirebaseToken = require('../middleware/verifyFirebaseToken');
 const admin = require('../config/firebaseAdmin');
+const { buildTicketSalesUpdate, findEventRef } = require('../lib/firestoreInventory');
+const { isAdminRequest } = require('../utils/ticketUtils');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -20,30 +22,10 @@ function generateTicketCode() {
   return code;
 }
 
-function isAdmin(req) {
-  const { uid, email, admin: adminClaim } = req.user;
-  return (
-    adminClaim === true ||
-    email === 'itacars237@admin.com' ||
-    email === 'aryelgamerbrs2@gmail.com' ||
-    uid === 'EhJOQzxkHOUjRTbmdNDDIqe7XEy2'
-  );
-}
-
-// ─── Importa o sendTicketEmail do paymentController ─────────────────────────
-// Reutiliza a mesma função de envio de e-mail
-const { sendTicketEmailFn } = (() => {
-  try {
-    return { sendTicketEmailFn: require('../controllers/paymentController').sendTicketEmail };
-  } catch {
-    return { sendTicketEmailFn: null };
-  }
-})();
-
 // ─── POST /api/admin/issue-ticket ───────────────────────────────────────────
 // Emite um ingresso manualmente para um comprador (venda feita fora da plataforma)
 router.post('/issue-ticket', verifyFirebaseToken, async (req, res) => {
-  if (!isAdmin(req)) {
+  if (!isAdminRequest(req.user)) {
     return res.status(403).json({ error: 'Acesso negado.' });
   }
 
@@ -72,25 +54,14 @@ router.post('/issue-ticket', verifyFirebaseToken, async (req, res) => {
   try {
     const db = admin.firestore();
 
-    // Busca o evento para validar e pegar o nome (Tenta 'excursions' primeiro, depois 'eventos')
-    let eventoRef = db.collection('excursions').doc(String(eventoId));
-    let eventoSnap = await eventoRef.get();
-    
-    if (!eventoSnap.exists) {
-      eventoRef = db.collection('eventos').doc(String(eventoId));
-      eventoSnap = await eventoRef.get();
-    }
-
-    if (!eventoSnap.exists) {
+    const locatedEvent = await findEventRef(db, eventoId);
+    if (!locatedEvent) {
       console.error('[ERROR] Evento não encontrado:', eventoId);
       return res.status(404).json({ error: 'Evento não encontrado em nenhuma coleção.' });
     }
-    const eventoData = eventoSnap.data();
+    const eventoData = locatedEvent.snap.data();
 
     // Encontra o lote pelo tipo
-    const ticketIndex = (eventoData.tickets || []).findIndex((t) => t.type === ticketType);
-    const ticketDef = ticketIndex >= 0 ? eventoData.tickets[ticketIndex] : null;
-
     // ID do pedido manual: prefixo MANUAL + timestamp + random
     const manualOrderId = `MANUAL-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
     const ticketCode = generateTicketCode();
@@ -129,24 +100,16 @@ router.post('/issue-ticket', verifyFirebaseToken, async (req, res) => {
       },
     };
 
-    // Grava o pedido no Firestore
-    await db
-      .collection('users')
-      .doc(userId)
-      .collection('orders')
-      .doc(manualOrderId)
-      .set(orderPayload);
-
-    // Incrementa contadores do evento
-    const updateData = { bookedSlots: admin.firestore.FieldValue.increment(1) };
-    if (ticketIndex >= 0) {
-      const currentSold = Number((eventoData.ticketSoldCounts || {})[String(ticketIndex)] || 0);
-      updateData.ticketSoldCounts = {
-        ...(eventoData.ticketSoldCounts || {}),
-        [String(ticketIndex)]: currentSold + 1,
-      };
-    }
-    await eventoRef.update(updateData);
+    const orderRef = db.collection('users').doc(userId).collection('orders').doc(manualOrderId);
+    await db.runTransaction(async (transaction) => {
+      const freshEventSnap = await transaction.get(locatedEvent.ref);
+      if (!freshEventSnap.exists) {
+        throw new Error('Evento não encontrado para emitir ingresso.');
+      }
+      const { updateData } = buildTicketSalesUpdate(freshEventSnap.data(), ticketType, 1);
+      transaction.update(locatedEvent.ref, updateData);
+      transaction.set(orderRef, orderPayload);
+    });
 
     // Envia e-mail se solicitado
     if (sendEmail && buyerEmail) {

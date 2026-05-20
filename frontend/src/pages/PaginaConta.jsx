@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ShoppingBag, Calendar, Ticket, Download, Mail, Bell, BellOff } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import html2canvas from "html2canvas";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import {
   collection,
   doc,
@@ -14,7 +13,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { toast } from "react-hot-toast";
-import { storage, auth, messaging } from "../firebaseConfig";
+import { auth, messaging } from "../firebaseConfig";
 import { getToken } from "firebase/messaging";
 import PurchaseCardSkeleton from "../components/PurchaseCardSkeleton";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";

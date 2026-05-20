@@ -27,7 +27,7 @@ if (paymentProvider !== 'stripe') {
   router.get('/webhook', webhookHandler); // IPN legado usa GET
 }
 
-router.post('/confirm', verifyFirebaseToken, confirmHandler);
+router.post('/confirm', optionalAuth, confirmHandler);
 router.post('/tap_result', verifyFirebaseToken, tapResultController.saveTapResult);
 router.post('/validate-ticket', verifyFirebaseToken, paymentController.validateTicket);
 

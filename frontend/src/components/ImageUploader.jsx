@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Upload, Link as LinkIcon } from "lucide-react";
+import { Upload } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "../firebaseConfig";
 import { Input, Button, Spinner } from "./AppPrimitives";

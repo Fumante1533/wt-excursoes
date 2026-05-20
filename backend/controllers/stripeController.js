@@ -1,6 +1,7 @@
 require('dotenv').config();
 const admin = require('../config/firebaseAdmin');
 const { generateTicketCode } = require('../utils/ticketUtils');
+const { buildTicketSalesUpdate, findEventRef } = require('../lib/firestoreInventory');
 
 let stripe;
 try {
@@ -55,7 +56,8 @@ exports.createCheckoutSession = async (req, res) => {
       }
 
       const eventoData = eventoRef.data();
-      const realTicket = eventoData.tickets.find((t) => t.type === item.ticket.type);
+      const ticketIndex = eventoData.tickets.findIndex((t) => t.type === item.ticket.type);
+      const realTicket = ticketIndex >= 0 ? eventoData.tickets[ticketIndex] : null;
 
       if (!realTicket) {
         return res.status(400).json({ error: `Ingresso do tipo ${item.ticket.type} inválido.` });
@@ -63,6 +65,13 @@ exports.createCheckoutSession = async (req, res) => {
 
       const realPrice = realTicket.price;
       const qty = Math.min(Math.max(parseInt(item.quantity, 10) || 1, 1), 100);
+      const ticketLimit = Number(realTicket.quantity || 0);
+      if (ticketLimit > 0) {
+        const sold = Number((eventoData.ticketSoldCounts || {})[String(ticketIndex)] || 0);
+        if (sold + qty > ticketLimit) {
+          return res.status(400).json({ error: `Vagas insuficientes no lote "${item.ticket.type}". Restam ${Math.max(0, ticketLimit - sold)}.` });
+        }
+      }
       subtotal += realPrice * qty;
 
       line_items.push({
@@ -169,14 +178,31 @@ exports.handleWebhook = async (req, res) => {
         }
 
         const orderRef = db.collection('users').doc(userId).collection('orders').doc(session.id);
-        const existing = await orderRef.get();
-        if (!existing.exists) {
-          const eventoSnapshots = await Promise.all(
-            cart.map((item) => db.collection('eventos').doc(String(item.eventoId)).get())
-          );
-          const eventosData = eventoSnapshots.map((snap) => snap.data());
+        const locatedEvents = await Promise.all(cart.map((item) => findEventRef(db, item.eventoId)));
+        const ticketCode = generateTicketCode();
+        let processed = false;
 
-          await orderRef.set({
+        await db.runTransaction(async (transaction) => {
+          const existing = await transaction.get(orderRef);
+          const eventSnaps = [];
+          for (const locatedEvent of locatedEvents) {
+            eventSnaps.push(locatedEvent ? await transaction.get(locatedEvent.ref) : null);
+          }
+
+          if (existing.exists) return;
+
+          const eventosData = eventSnaps.map((snap) => (snap && snap.exists ? snap.data() : null));
+          cart.forEach((item, index) => {
+            const locatedEvent = locatedEvents[index];
+            const eventSnap = eventSnaps[index];
+            if (!locatedEvent || !eventSnap || !eventSnap.exists) {
+              throw new Error(`Evento ${item.eventoId} não encontrado para confirmar pagamento.`);
+            }
+            const { updateData } = buildTicketSalesUpdate(eventSnap.data(), item.ticketType, item.quantity || 1);
+            transaction.update(locatedEvent.ref, updateData);
+          });
+
+          transaction.set(orderRef, {
             id: session.id,
             userId,
             buyerInfo,
@@ -197,22 +223,17 @@ exports.handleWebhook = async (req, res) => {
             paymentMethod: session.payment_method_types && session.payment_method_types[0],
             purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
             ticket: {
-              code: generateTicketCode(),
+              code: ticketCode,
               validated: false,
               validatedAt: null,
               validatedBy: null,
             },
           });
 
-          const batch = db.batch();
-          cart.forEach((item) => {
-            const eventoRef = db.collection('eventos').doc(String(item.eventoId));
-            batch.update(eventoRef, {
-              bookedSlots: admin.firestore.FieldValue.increment(item.quantity || 1),
-            });
-          });
-          await batch.commit();
-        }
+          processed = true;
+        });
+
+        if (!processed) return res.status(200).json({ received: true });
       }
     } catch (dbError) {
       console.error('Erro ao salvar pedido (Stripe):', dbError.message || dbError);

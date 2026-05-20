@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { collection, getDocs, orderBy, query, collectionGroup } from "firebase/firestore";
-import { Trophy, Medal, Award, Star, Car, Ticket, TrendingUp } from "lucide-react";
+import { collection, getDocs, query, collectionGroup } from "firebase/firestore";
+import { Trophy, Medal, Award, Star, Ticket, TrendingUp } from "lucide-react";
 import { PageWrapper } from "../components/AppPrimitives";
 import { db } from "../firebaseConfig";
 

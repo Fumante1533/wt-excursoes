@@ -424,14 +424,15 @@ function ValidadorIngressos({ eventos }) {
             }
           }
         );
-      } catch (e) {
+      } catch (scanErr) {
+        console.warn("Falha ao iniciar leitor de QR:", scanErr);
         if (!stopped) setScanError("Não foi possível acessar a câmera. Verifique permissões.");
         setIsScanning(false);
       }
     })();
     return () => {
       stopped = true;
-      try { reader.reset(); } catch (_) { /* ignore */ }
+      try { reader.reset(); } catch { /* ignore */ }
     };
   }, [isScanning]);
 
@@ -594,8 +595,6 @@ export default function PainelAdministrativo({
     };
     fetchAllOrders();
   }, []);
-
-  const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0);
 
   const renderContent = () => {
     switch (activeTab) {

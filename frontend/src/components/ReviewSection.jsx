@@ -1,7 +1,7 @@
 // src/components/ReviewSection.jsx
 import React, { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
-import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { motion } from 'framer-motion';
 
 const StarRating = ({ rating, setRating }) => (

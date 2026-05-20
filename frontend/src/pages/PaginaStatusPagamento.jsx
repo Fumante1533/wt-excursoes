@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, Ticket, Calendar, User, Download } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Download } from "lucide-react";
 import { collection, query, orderBy, limit, getDocs, collectionGroup, where } from "firebase/firestore";
 import { Card, Button, PageWrapper, Spinner } from "../components/AppPrimitives";
 import { db } from "../firebaseConfig";

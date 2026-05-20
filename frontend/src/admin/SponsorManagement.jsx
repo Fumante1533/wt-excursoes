@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Building2, Link2, Phone, Instagram, Facebook, Plus, Edit, Trash2, Save, X,
+  Building2, Link2, Phone, Instagram, Plus, Edit, Trash2, Save, X,
 } from "lucide-react";
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-hot-toast";
@@ -87,6 +87,7 @@ export default function SponsorManagement({ db }) {
       logActivity(auth.currentUser?.email, "EXCLUIR_PARCEIRO", `Excluiu parceiro ID: ${id}`);
       toast.success("Parceiro removido.");
     } catch (err) {
+      console.error("Erro ao remover parceiro:", err);
       toast.error("Erro ao remover.");
     }
   };

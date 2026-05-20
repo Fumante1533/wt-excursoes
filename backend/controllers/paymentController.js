@@ -1,6 +1,12 @@
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 const admin = require('../config/firebaseAdmin');
 const { generateTicketCode, normalizeTicketCode, isAdminRequest } = require('../utils/ticketUtils');
+const { buildTicketSalesUpdate, findEventRef } = require('../lib/firestoreInventory');
+const {
+  normalizeCouponCode,
+  roundCurrency,
+  validateCouponForPurchase,
+} = require('../lib/paymentHelpers');
 const nodemailer = require('nodemailer');
 
 const sendTicketEmail = exports.sendTicketEmail = async (email, name, eventName, ticketCode) => {
@@ -35,6 +41,35 @@ const sendTicketEmail = exports.sendTicketEmail = async (email, name, eventName,
 let client;
 if (process.env.MERCADO_PAGO_ACCESS_TOKEN) {
   client = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN });
+}
+
+async function resolveCouponForPurchase(db, couponCode, context) {
+  const normalizedCode = normalizeCouponCode(couponCode);
+  if (!normalizedCode) return null;
+
+  const couponSnap = await db.collection('coupons').where('code', '==', normalizedCode).limit(1).get();
+  if (couponSnap.empty) {
+    const err = new Error('Cupom inválido.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const couponDoc = couponSnap.docs[0];
+  const coupon = { id: couponDoc.id, ...couponDoc.data(), code: normalizedCode };
+  const validation = validateCouponForPurchase(coupon, context);
+  if (!validation.valid) {
+    const err = new Error(validation.reason);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return {
+    docId: couponDoc.id,
+    code: normalizedCode,
+    data: coupon,
+    discountAmount: validation.discountAmount,
+    total: validation.total,
+  };
 }
 
 exports.createPreference = async (req, res) => {
@@ -94,18 +129,14 @@ exports.createPreference = async (req, res) => {
         });
       }
     }
-    let excursionRef = await db.collection('excursions').doc(String(targetExcursion.id)).get();
-    
-    if (!excursionRef.exists) {
-      excursionRef = await db.collection('eventos').doc(String(targetExcursion.id)).get();
-    }
+    const locatedEvent = await findEventRef(db, targetExcursion.id);
 
-    if (!excursionRef.exists) {
+    if (!locatedEvent) {
       console.error('[ERROR] Evento não encontrado:', targetExcursion.id);
       return res.status(400).json({ error: 'Evento não encontrado em nenhuma coleção.' });
     }
 
-    const excursionData = excursionRef.data();
+    const excursionData = locatedEvent.snap.data();
     const realTicketIndex = excursionData.tickets.findIndex((t) => t.type === ticket.type);
     const realTicket = realTicketIndex >= 0 ? excursionData.tickets[realTicketIndex] : null;
 
@@ -142,15 +173,33 @@ exports.createPreference = async (req, res) => {
       }
     }
 
-    const realPrice = realTicket.price;
+    const realPrice = Number(realTicket.price || 0);
 
     const payerEmail = tokenEmail || (buyerInfo && String(buyerInfo.email).trim()) || '';
     if (!payerEmail) {
       return res.status(400).json({ error: 'E-mail do pagador é obrigatório.' });
     }
 
-    if (Number(realPrice) <= 0) {
+    if (realPrice <= 0) {
       return res.status(400).json({ error: 'Ingressos gratuitos ou isentos não podem ser processados via Mercado Pago. O valor deve ser maior que zero.' });
+    }
+
+    const subtotal = roundCurrency(realPrice * totalQtyDemanded);
+    let coupon = null;
+    try {
+      coupon = await resolveCouponForPurchase(db, couponCode, {
+        eventId: String(targetExcursion.id),
+        ticketType: ticket.type,
+        subtotal,
+      });
+    } catch (couponErr) {
+      return res.status(couponErr.statusCode || 400).json({ error: couponErr.message || 'Cupom inválido.' });
+    }
+
+    const discountAmount = roundCurrency(coupon ? coupon.discountAmount : 0);
+    const amountToCharge = roundCurrency(subtotal - discountAmount);
+    if (amountToCharge <= 0) {
+      return res.status(400).json({ error: 'O valor final da compra precisa ser maior que zero para pagamento online.' });
     }
 
     const preference = new Preference(client);
@@ -159,12 +208,12 @@ exports.createPreference = async (req, res) => {
       items: [
         {
           id: String(targetExcursion.id),
-          title: `${excursionData.name} (${ticket.type})`,
+          title: `${excursionData.name} (${ticket.type})${totalQtyDemanded > 1 ? ` x${totalQtyDemanded}` : ''}`,
           description: excursionData.location || "Evento",
           picture_url: excursionData.image || undefined,
-          quantity: totalQtyDemanded,
+          quantity: 1,
           currency_id: 'BRL',
-          unit_price: Number(realPrice),
+          unit_price: amountToCharge,
         },
       ],
       payer: {
@@ -182,7 +231,10 @@ exports.createPreference = async (req, res) => {
         is_guest: String(isGuest),
         evento_id: String(targetExcursion.id),
         ticket_type: ticket.type,
-        coupon_code: couponCode ? String(couponCode).toUpperCase() : '',
+        coupon_code: coupon ? coupon.code : '',
+        coupon_doc_id: coupon ? coupon.docId : '',
+        amount_before_discount: String(subtotal),
+        discount_amount: String(discountAmount),
         car_info: JSON.stringify(carInfo || {}),
         additional_passengers: additionalPassengers ? JSON.stringify(additionalPassengers).substring(0, 450) : "[]",
       },
@@ -197,7 +249,7 @@ exports.createPreference = async (req, res) => {
       const cleanCpf = String((buyerInfo && buyerInfo.cpf) || '').replace(/\D/g, '');
 
       const paymentBody = {
-        transaction_amount: Number((Number(realPrice) * totalQtyDemanded).toFixed(2)),
+        transaction_amount: amountToCharge,
         description: `${excursionData.name} (${ticket.type})`,
         payment_method_id: 'pix',
         payer: {
@@ -214,7 +266,10 @@ exports.createPreference = async (req, res) => {
           is_guest: String(isGuest),
           evento_id: String(targetExcursion.id),
           ticket_type: ticket.type,
-          coupon_code: couponCode ? String(couponCode).toUpperCase() : '',
+          coupon_code: coupon ? coupon.code : '',
+          coupon_doc_id: coupon ? coupon.docId : '',
+          amount_before_discount: String(subtotal),
+          discount_amount: String(discountAmount),
           car_info: JSON.stringify(carInfo || {}),
           additional_passengers: additionalPassengers ? JSON.stringify(additionalPassengers).substring(0, 450) : "[]",
         },
@@ -228,13 +283,17 @@ exports.createPreference = async (req, res) => {
           eventoId: targetExcursion.id,
           eventoName: excursionData.name,
           ticketType: ticket.type,
-          price: Number(realPrice) * totalQtyDemanded,
+          price: amountToCharge,
+          originalPrice: subtotal,
+          discountAmount,
+          couponCode: coupon ? coupon.code : null,
           status: 'Pendente',
           createdAt: new Date().toISOString(),
           buyerName: payerEmail.split('@')[0],
           buyerEmail: payerEmail,
           abandonedCartSent: false,
           paymentMethod: 'pix',
+          paymentId: response.id,
           qrCode: response.point_of_interaction?.transaction_data?.qr_code || '',
           qrCodeBase64: response.point_of_interaction?.transaction_data?.qr_code_base64 || ''
         });
@@ -257,12 +316,16 @@ exports.createPreference = async (req, res) => {
         eventoId: targetExcursion.id,
         eventoName: excursionData.name,
         ticketType: ticket.type,
-        price: Number(realPrice) * totalQtyDemanded,
+        price: amountToCharge,
+        originalPrice: subtotal,
+        discountAmount,
+        couponCode: coupon ? coupon.code : null,
         status: 'Pendente',
         createdAt: new Date().toISOString(),
         buyerName: payerEmail.split('@')[0],
         buyerEmail: payerEmail,
-        abandonedCartSent: false
+        abandonedCartSent: false,
+        preferenceId: response.id
       });
 
       return res.json({ id: response.id, checkout_url: response.init_point });
@@ -329,25 +392,56 @@ exports.receiveWebhook = async (req, res) => {
 
       const db = admin.firestore();
       const orderRef = db.collection('users').doc(userId).collection('orders').doc(String(orderData.id));
-      const existing = await orderRef.get();
-      if (existing.exists) {
-        const existingData = existing.data();
-        if (existingData.status === 'Pago' || existingData.status === 'approved') {
-          return; // já processado (idempotência)
-        }
-      }
-
-      // Salva o ingresso principal
       const ticketCodeMain = generateTicketCode();
       const eventoNameStr = orderData.additional_info?.items?.[0]?.title?.split(' (')[0] || '';
-      
-      const batch = db.batch();
-      
-      batch.set(orderRef, {
+      const couponCode = normalizeCouponCode(metadata && metadata.coupon_code);
+      const couponDocId = metadata && metadata.coupon_doc_id;
+      const amountBeforeDiscount = roundCurrency(Number((metadata && metadata.amount_before_discount) || orderData.transaction_amount || 0));
+      const discountAmount = roundCurrency(Number((metadata && metadata.discount_amount) || 0));
+      const totalTicketsBought = 1 + additionalPassengers.length;
+      const extraTicketEmails = additionalPassengers.map((passenger, idx) => ({
+        passenger,
+        code: generateTicketCode(),
+        ref: db.collection('users').doc(userId).collection('orders').doc(`${orderData.id}_${idx + 1}`),
+      }));
+      const locatedEvent = eventoId ? await findEventRef(db, eventoId) : null;
+      const couponRef = couponDocId ? db.collection('coupons').doc(String(couponDocId)) : null;
+      let processed = false;
+
+      await db.runTransaction(async (transaction) => {
+        const existing = await transaction.get(orderRef);
+        const eventSnap = locatedEvent ? await transaction.get(locatedEvent.ref) : null;
+        const couponSnap = couponRef ? await transaction.get(couponRef) : null;
+
+        if (existing.exists) {
+          const existingData = existing.data();
+          if (existingData.status === 'Pago' || existingData.status === 'approved') {
+            return;
+          }
+        }
+
+        if (eventoId) {
+          if (!locatedEvent || !eventSnap.exists) {
+            throw new Error('Evento não encontrado para confirmar pagamento.');
+          }
+          const { updateData } = buildTicketSalesUpdate(eventSnap.data(), ticketType, totalTicketsBought);
+          transaction.update(locatedEvent.ref, updateData);
+        }
+
+        if (couponCode && couponRef && couponSnap.exists) {
+          transaction.update(couponRef, {
+            usedCount: admin.firestore.FieldValue.increment(1),
+          });
+        }
+
+        transaction.set(orderRef, {
         eventoId: eventoId,
         eventoName: eventoNameStr,
         ticketType: ticketType,
-        price: Number(orderData.transaction_amount || 0),
+        price: roundCurrency(Number(orderData.transaction_amount || 0)),
+        originalPrice: amountBeforeDiscount,
+        discountAmount,
+        couponCode: couponCode || null,
         status: 'Pago',
         purchaseDate: new Date().toISOString(),
         buyerName: orderData.payer?.first_name || '',
@@ -363,15 +457,15 @@ exports.receiveWebhook = async (req, res) => {
       });
 
       // Salva os ingressos adicionais, se houver
-      if (Array.isArray(additionalPassengers)) {
-        additionalPassengers.forEach((passenger, idx) => {
-          const extraCode = generateTicketCode();
-          const extraRef = db.collection('users').doc(userId).collection('orders').doc(`${orderData.id}_${idx + 1}`);
-          batch.set(extraRef, {
+        extraTicketEmails.forEach(({ passenger, code, ref }) => {
+          transaction.set(ref, {
             eventoId: eventoId,
             eventoName: eventoNameStr,
             ticketType: ticketType,
-            price: 0, // o total já foi pago no principal
+            price: 0,
+            originalPrice: 0,
+            discountAmount: 0,
+            couponCode: couponCode || null,
             status: 'Pago',
             purchaseDate: new Date().toISOString(),
             buyerName: passenger.fullName || 'Acompanhante',
@@ -384,66 +478,31 @@ exports.receiveWebhook = async (req, res) => {
               color: passenger.carColor || ''
             },
             ticket: {
-              code: extraCode,
+              code,
               validated: false,
               validatedAt: null,
               validatedBy: null,
             },
           });
         });
-      }
 
-      await batch.commit();
+        processed = true;
+      });
 
-      // Incrementa usedCount do cupom, se havia cupom aplicado
-      const couponCode = orderData.metadata?.coupon_code;
-      if (couponCode) {
-        try {
-          const couponSnap = await db.collection('coupons').where('code', '==', couponCode).limit(1).get();
-          if (!couponSnap.empty) {
-            await couponSnap.docs[0].ref.update({
-              usedCount: admin.firestore.FieldValue.increment(1)
-            });
-          }
-        } catch (couponErr) {
-          console.error('Erro ao incrementar cupom:', couponErr.message);
-        }
-      }
+      if (!processed) return;
 
       // Envia os emails de forma assíncrona
       if (orderData.payer?.email) {
         sendTicketEmail(orderData.payer.email, orderData.payer.first_name || 'Comprador', eventoNameStr, ticketCodeMain);
       }
-      if (Array.isArray(additionalPassengers)) {
-        additionalPassengers.forEach((passenger, idx) => {
+      if (Array.isArray(extraTicketEmails)) {
+        extraTicketEmails.forEach(({ passenger, code }) => {
           if (passenger.email) {
-            sendTicketEmail(passenger.email, passenger.fullName || 'Acompanhante', eventoNameStr, `${orderData.id}_${idx + 1}`);
+            sendTicketEmail(passenger.email, passenger.fullName || 'Acompanhante', eventoNameStr, code);
           }
         });
       }
 
-          if (eventoId) {
-            const eventoRef = db.collection('excursions').doc(String(eventoId));
-            const eventoSnap = await eventoRef.get();
-            const totalTicketsBought = 1 + additionalPassengers.length;
-            const updateData = { bookedSlots: admin.firestore.FieldValue.increment(totalTicketsBought) };
-
-            // Incrementar contagem do lote vendido
-            if (eventoSnap.exists && ticketType) {
-              const eventoData = eventoSnap.data();
-              const ticketIndex = (eventoData.tickets || []).findIndex((t) => t.type === ticketType);
-              if (ticketIndex >= 0) {
-                const currentSoldCount = (eventoData.ticketSoldCounts || {})[String(ticketIndex)] || 0;
-                const newSoldCounts = {
-                  ...(eventoData.ticketSoldCounts || {}),
-                  [String(ticketIndex)]: Number(currentSoldCount) + totalTicketsBought,
-                };
-                updateData.ticketSoldCounts = newSoldCounts;
-              }
-            }
-
-            await eventoRef.update(updateData);
-          }
     }
   } catch (error) {
     // Resposta 200 já foi enviada. Apenas loga o erro internamente.
@@ -463,7 +522,9 @@ exports.confirmPayment = async (req, res) => {
     const orderData = await payment.get({ id });
 
     const metaUid = orderData.metadata && orderData.metadata.user_id;
-    if (!metaUid || metaUid !== req.user.uid) {
+    const isGuestPayment = metaUid && String(metaUid).startsWith('guest_');
+    const isOwnPayment = req.user && metaUid === req.user.uid;
+    if (!metaUid || (!isOwnPayment && !isGuestPayment)) {
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
@@ -471,8 +532,8 @@ exports.confirmPayment = async (req, res) => {
       id: orderData.id,
       status: orderData.status,
       transaction_amount: orderData.transaction_amount,
-      payer: orderData.payer,
-      metadata: orderData.metadata,
+      payer: isOwnPayment ? orderData.payer : undefined,
+      metadata: isOwnPayment ? orderData.metadata : undefined,
     });
   } catch (err) {
     console.error('Erro ao confirmar pagamento:', err.message || err);
@@ -502,8 +563,40 @@ exports.validateTicket = async (req, res) => {
     }
 
     const docSnap = snap.docs[0];
-    const data = docSnap.data();
-    if (data.ticket && data.ticket.validated) {
+    let validatedData;
+    let alreadyValidated = false;
+
+    await db.runTransaction(async (transaction) => {
+      const freshSnap = await transaction.get(docSnap.ref);
+      if (!freshSnap.exists) {
+        throw new Error('Ingresso não encontrado.');
+      }
+
+      const data = freshSnap.data();
+      if (data.ticket && data.ticket.validated) {
+        validatedData = data;
+        alreadyValidated = true;
+        return;
+      }
+
+      validatedData = data;
+      transaction.set(
+        docSnap.ref,
+        {
+          ticket: {
+            ...(data.ticket || {}),
+            code: normalized,
+            validated: true,
+            validatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            validatedBy: req.user.uid,
+          },
+        },
+        { merge: true }
+      );
+    });
+
+    const data = validatedData || docSnap.data();
+    if (alreadyValidated) {
       return res.status(409).json({
         error: 'Ingresso já validado.',
         ticket: data.ticket,
@@ -513,19 +606,6 @@ exports.validateTicket = async (req, res) => {
         carInfo: data.carInfo || data.buyerInfo || null,
       });
     }
-
-    await docSnap.ref.set(
-      {
-        ticket: {
-          ...(data.ticket || {}),
-          code: normalized,
-          validated: true,
-          validatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          validatedBy: req.user.uid,
-        },
-      },
-      { merge: true }
-    );
 
     return res.json({
       ok: true,

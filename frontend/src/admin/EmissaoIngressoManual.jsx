@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Ticket, User, Car, DollarSign, Mail, Send, CheckCircle2,
-  AlertCircle, ClipboardCopy, RotateCcw, FileText,
+  Ticket, User, Car, DollarSign, Mail, CheckCircle2,
+  ClipboardCopy, RotateCcw,
 } from "lucide-react";
 import { auth } from "../firebaseConfig";
 import { toast } from "react-hot-toast";
-import { Button, Input } from "../components/AppPrimitives";
 
 const PAYMENT_METHODS = [
   { value: "pix", label: "PIX" },
