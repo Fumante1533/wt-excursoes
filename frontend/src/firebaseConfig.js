@@ -3,6 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics } from "firebase/analytics";
+import { getMessaging } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
@@ -20,6 +21,7 @@ let auth = null;
 let db = null;
 let storage = null;
 let analytics = null;
+let messaging = null;
 let firebaseConfigError = null;
 
 try {
@@ -46,6 +48,13 @@ try {
       typeof window !== "undefined" && firebaseConfig.measurementId
         ? getAnalytics(app)
         : null;
+    if (typeof window !== "undefined") {
+      try {
+        messaging = getMessaging(app);
+      } catch (messagingErr) {
+        console.warn("Firebase Messaging não é suportado neste navegador:", messagingErr);
+      }
+    }
   }
 } catch (err) {
   firebaseConfigError = err;
@@ -54,7 +63,8 @@ try {
   db = null;
   storage = null;
   analytics = null;
+  messaging = null;
 }
 
 export default firebaseConfig;
-export { app, auth, db, storage, analytics, firebaseConfigError };
+export { app, auth, db, storage, analytics, messaging, firebaseConfigError };

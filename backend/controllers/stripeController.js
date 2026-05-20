@@ -17,13 +17,14 @@ exports.createCheckoutSession = async (req, res) => {
   }
 
   const { cart, buyerInfo, carInfo } = req.body || {};
-  const uid = req.user.uid;
-  const email = (req.user.email || (buyerInfo && buyerInfo.email) || '').trim();
+  const isGuest = !req.user;
+  const uid = req.user ? req.user.uid : `guest_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+  const email = (req.user && req.user.email ? req.user.email : (buyerInfo && buyerInfo.email) || '').trim();
 
   if (!email) {
     return res.status(400).json({ error: 'E-mail obrigatório para checkout.' });
   }
-  if (req.user.email && buyerInfo && buyerInfo.email) {
+  if (req.user && req.user.email && buyerInfo && buyerInfo.email) {
     if (String(buyerInfo.email).trim().toLowerCase() !== req.user.email.toLowerCase()) {
       return res.status(400).json({ error: 'O e-mail do formulário deve ser o mesmo da conta logada.' });
     }

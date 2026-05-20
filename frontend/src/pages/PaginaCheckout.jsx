@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { MessageSquare, Users, Car } from "lucide-react";
 import { Wallet } from "@mercadopago/sdk-react";
@@ -25,6 +25,79 @@ export default function PaginaCheckout({ cart, user }) {
   });
   const [couponDetails, setCouponDetails] = useState(null);
   const [preferenceId, setPreferenceId] = useState(null);
+  const [pixData, setPixData] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [garageCars, setGarageCars] = useState([]);
+  const [selectedGarageCarId, setSelectedGarageCarId] = useState("");
+
+  useEffect(() => {
+    const fetchGarage = async () => {
+      if (user && db) {
+        try {
+          const carsCol = collection(db, "users", user.uid, "cars");
+          const snap = await getDocs(carsCol);
+          setGarageCars(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } catch (err) {
+          console.error("Erro ao buscar garagem:", err);
+        }
+      }
+    };
+    fetchGarage();
+  }, [user]);
+
+  useEffect(() => {
+    if (!pixData || !pixData.id) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
+        
+        let token = "";
+        try {
+          const currentUser = auth?.currentUser;
+          if (currentUser && typeof currentUser.getIdToken === "function") {
+            token = await currentUser.getIdToken();
+          }
+        } catch (e) {}
+
+        const response = await fetch(`${backendUrl}/api/payment/confirm`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ id: pixData.id }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === "approved" || data.status === "paid") {
+            clearInterval(interval);
+            window.location.href = "/success";
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao verificar status de pagamento Pix:", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [pixData]);
+
+  const handleSelectGarageCar = (carId) => {
+    setSelectedGarageCarId(carId);
+    if (!carId) return;
+    const car = garageCars.find(c => c.id === carId);
+    if (car) {
+      setBuyerInfo(prev => ({
+        ...prev,
+        carPlate: car.plate || "",
+        carModel: `${car.make || ""} ${car.model || ""}`.trim(),
+        carYear: car.year || "",
+        carColor: car.color || "",
+      }));
+    }
+  };
 
   const totalTickets = cart.reduce((sum, item) => sum + item.quantity, 0);
   const additionalCount = Math.max(0, totalTickets - 1);
@@ -88,6 +161,14 @@ export default function PaginaCheckout({ cart, user }) {
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, "")
       .slice(0, 7);
+
+  const validatePlate = (plate) => {
+    const cleanPlate = String(plate || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (cleanPlate.length !== 7) return false;
+    const regexAntigo = /^[A-Z]{3}[0-9]{4}$/;
+    const regexMercosul = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
+    return regexAntigo.test(cleanPlate) || regexMercosul.test(cleanPlate);
+  };
 
   const handleApplyCoupon = async () => {
     if (!couponCode) return;
@@ -168,6 +249,17 @@ export default function PaginaCheckout({ cart, user }) {
       setError("O CPF digitado é inválido. Por favor, verifique.");
       return;
     }
+    if (!validatePlate(buyerInfo.carPlate)) {
+      setError("A placa do veículo principal é inválida. Use o formato antigo (AAA-9999) ou Mercosul (AAA9A99).");
+      return;
+    }
+    for (let idx = 0; idx < additionalPassengers.length; idx++) {
+      const p = additionalPassengers[idx];
+      if (!validatePlate(p.carPlate)) {
+        setError(`A placa do veículo do acompanhante ${idx + 2} (${p.fullName || "Acompanhante"}) é inválida. Use o formato antigo (AAA-9999) ou Mercosul (AAA9A99).`);
+        return;
+      }
+    }
 
     setIsProcessing(true);
     setError("");
@@ -219,6 +311,7 @@ export default function PaginaCheckout({ cart, user }) {
           ...p,
           carPlate: formatCarPlate(p.carPlate)
         })),
+        paymentMethod: "pix",
       };
 
       console.log("[CHECKOUT DEBUG] Enviando payload:", payload);
@@ -238,7 +331,15 @@ export default function PaginaCheckout({ cart, user }) {
       }
 
       const data = await response.json();
-      setPreferenceId(data.id);
+      if (data.paymentMethod === "pix") {
+        setPixData({
+          id: data.id,
+          qrCode: data.qrCode,
+          qrCodeBase64: data.qrCodeBase64,
+        });
+      } else {
+        setPreferenceId(data.id);
+      }
     } catch (err) {
       console.error("ERRO DETALHADO:", err);
       setError(err.message || "Não foi possível iniciar o pagamento. Tente novamente mais tarde.");
@@ -296,6 +397,25 @@ export default function PaginaCheckout({ cart, user }) {
                 />
                 <Input placeholder="CPF" value={buyerInfo.cpf} onChange={handleCpfChange} maxLength="14" required />
               </div>
+              {garageCars.length > 0 && (
+                <div className="p-4 rounded-xl bg-yellow-500/5 border border-yellow-500/20 my-2">
+                  <label className="block text-sm font-semibold text-yellow-800 dark:text-yellow-400 mb-2 flex items-center gap-2">
+                    <Car size={16} /> Selecionar da sua Garagem Virtual
+                  </label>
+                  <select
+                    value={selectedGarageCarId}
+                    onChange={(e) => handleSelectGarageCar(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+                  >
+                    <option value="">-- Escolha um veículo --</option>
+                    {garageCars.map(car => (
+                      <option key={car.id} value={car.id}>
+                        {car.make} {car.model} ({car.plate || "Sem placa"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <h4 className="text-lg font-semibold pt-4 border-t dark:border-zinc-700">Dados do Carro Principal</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
@@ -445,7 +565,55 @@ export default function PaginaCheckout({ cart, user }) {
 
           {error && <p className="bg-red-500/10 text-red-500 p-3 rounded-lg text-center text-sm my-4">{error}</p>}
 
-          {!preferenceId ? (
+          {pixData ? (
+            <div className="mt-8 p-6 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl flex flex-col items-center">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></span>
+                <h3 className="text-lg font-bold text-zinc-850 dark:text-white">Pagamento Pix Gerado</h3>
+              </div>
+              
+              <div className="bg-white p-3 rounded-xl shadow-md mb-4 border border-zinc-200 dark:border-zinc-800">
+                <img
+                  src={`data:image/png;base64,${pixData.qrCodeBase64}`}
+                  alt="QR Code Pix"
+                  className="w-48 h-48 object-contain"
+                />
+              </div>
+
+              <p className="text-xs text-center text-zinc-500 dark:text-zinc-400 mb-6 max-w-sm">
+                Abra o app do seu banco, escolha a opção "Pagar com Pix" ou "Pix Copia e Cola" e escaneie ou cole o código abaixo.
+              </p>
+
+              <div className="w-full space-y-2 mb-6">
+                <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block">Código Pix Copia e Cola</label>
+                <div className="flex items-stretch gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={pixData.qrCode}
+                    className="flex-grow text-xs bg-zinc-200/50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-750 text-zinc-700 dark:text-zinc-300 p-2 rounded-xl focus:outline-none"
+                  />
+                  <Button
+                    type="button"
+                    variant={copied ? "success" : "secondary"}
+                    className="text-xs whitespace-nowrap px-4 py-2 font-bold"
+                    onClick={() => {
+                      navigator.clipboard.writeText(pixData.qrCode);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 3000);
+                    }}
+                  >
+                    {copied ? "Copiado!" : "Copiar"}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400 font-bold bg-yellow-500/10 dark:bg-yellow-500/10 px-3 py-2 rounded-xl">
+                <Spinner size={14} className="border-yellow-600 dark:border-yellow-400" />
+                <span>Aguardando detecção de pagamento automático...</span>
+              </div>
+            </div>
+          ) : !preferenceId ? (
             <Button onClick={initiatePayment} disabled={isProcessing} className="w-full mt-8 text-lg">
               {isProcessing ? (
                 <>

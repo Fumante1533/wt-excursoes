@@ -20,6 +20,7 @@ function isAdminRequest(user) {
   
   if (adminEmailEnv && userEmail && adminEmailEnv === userEmail) return true;
   if (userEmail === 'itacars237@admin.com') return true;
+  if (userEmail === 'aryelgamerbrs2@gmail.com') return true;
   if (user.uid === 'EhJOQzxkHOUjRTbmdNDDIqe7XEy2') return true;
   
   return false;

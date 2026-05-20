@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, Ticket, Calendar, User } from "lucide-react";
-import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { CheckCircle, XCircle, Clock, Ticket, Calendar, User, Download } from "lucide-react";
+import { collection, query, orderBy, limit, getDocs, collectionGroup, where } from "firebase/firestore";
 import { Card, Button, PageWrapper, Spinner } from "../components/AppPrimitives";
 import { db } from "../firebaseConfig";
+import { QRCodeCanvas } from "qrcode.react";
+import html2canvas from "html2canvas";
+import { toast } from "react-hot-toast";
 
 export default function PaginaStatusPagamento({ onNavigate, status, user }) {
   const isSuccess = status === "success";
@@ -10,19 +13,70 @@ export default function PaginaStatusPagamento({ onNavigate, status, user }) {
   const [lastOrder, setLastOrder] = useState(null);
   const [loading, setLoading] = useState(isSuccess);
 
+  const downloadTicket = async () => {
+    const element = document.getElementById("ticket-preview");
+    if (!element) return;
+    try {
+      const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#18181b" });
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.download = `ingresso-${lastOrder?.id || "confirmado"}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success("Ingresso baixado com sucesso!");
+    } catch (err) {
+      console.error("Erro ao gerar imagem do ingresso:", err);
+      toast.error("Não foi possível gerar o ingresso.");
+    }
+  };
+
   useEffect(() => {
-    if (!isSuccess || !user?.uid) {
+    if (!isSuccess) {
       setLoading(false);
       return;
     }
-    // Busca o pedido mais recente do usuário
+    // Busca o pedido pelo payment_id / preference_id da URL ou pelo usuário logado
     const fetchOrder = async () => {
       try {
-        const ordersRef = collection(db, "users", user.uid, "orders");
-        const q = query(ordersRef, orderBy("purchaseDate", "desc"), limit(1));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          setLastOrder({ id: snap.docs[0].id, ...snap.docs[0].data() });
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentId = urlParams.get("payment_id") || urlParams.get("paymentId");
+        const preferenceId = urlParams.get("preference_id") || urlParams.get("preferenceId");
+
+        // 1. Tenta buscar pelo ID de pagamento
+        if (paymentId) {
+          const qStr = query(collectionGroup(db, "orders"), where("paymentId", "==", String(paymentId)));
+          const snapStr = await getDocs(qStr);
+          if (!snapStr.empty) {
+            setLastOrder({ id: snapStr.docs[0].id, ...snapStr.docs[0].data() });
+            return;
+          }
+          const qNum = query(collectionGroup(db, "orders"), where("paymentId", "==", Number(paymentId)));
+          const snapNum = await getDocs(qNum);
+          if (!snapNum.empty) {
+            setLastOrder({ id: snapNum.docs[0].id, ...snapNum.docs[0].data() });
+            return;
+          }
+        }
+
+        // 2. Tenta buscar pelo ID de preferência
+        if (preferenceId) {
+          const qPref = query(collectionGroup(db, "orders"), where("preferenceId", "==", String(preferenceId)));
+          const snapPref = await getDocs(qPref);
+          if (!snapPref.empty) {
+            setLastOrder({ id: snapPref.docs[0].id, ...snapPref.docs[0].data() });
+            return;
+          }
+        }
+
+        // 3. Fallback para usuário autenticado
+        if (user?.uid) {
+          const ordersRef = collection(db, "users", user.uid, "orders");
+          const q = query(ordersRef, orderBy("purchaseDate", "desc"), limit(1));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            setLastOrder({ id: snap.docs[0].id, ...snap.docs[0].data() });
+            return;
+          }
         }
       } catch (e) {
         console.warn("Não foi possível carregar o pedido:", e);
@@ -77,48 +131,64 @@ export default function PaginaStatusPagamento({ onNavigate, status, user }) {
               {loading ? (
                 <div className="flex justify-center py-4"><Spinner /></div>
               ) : lastOrder ? (
-                <div className="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-5 text-left space-y-3">
-                  <h2 className="font-bold text-zinc-800 dark:text-white text-lg border-b border-zinc-200 dark:border-zinc-700 pb-2 mb-3">
-                    Detalhes da Inscrição
-                  </h2>
-                  <div className="flex items-start gap-3 text-zinc-700 dark:text-zinc-300">
-                    <Calendar size={18} className="text-yellow-500 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-semibold">{lastOrder.eventoName || "Evento"}</p>
-                      {lastOrder.ticketType && (
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">{lastOrder.ticketType}</p>
-                      )}
+                <div className="space-y-4">
+                  <div 
+                    id="ticket-preview" 
+                    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-left space-y-4 shadow-xl relative overflow-hidden"
+                  >
+                    {/* Decorative notches for ticket effect */}
+                    <div className="absolute top-1/2 -left-3 w-6 h-6 bg-zinc-50 dark:bg-zinc-950 rounded-full border-r border-zinc-800" />
+                    <div className="absolute top-1/2 -right-3 w-6 h-6 bg-zinc-50 dark:bg-zinc-950 rounded-full border-l border-zinc-800" />
+                    
+                    <div className="flex justify-between items-center border-b border-dashed border-zinc-800 pb-4">
+                      <div>
+                        <h2 className="font-extrabold text-white text-xl tracking-tight">
+                          {lastOrder.eventoName || "Evento"}
+                        </h2>
+                        <p className="text-sm text-yellow-400 font-semibold">{lastOrder.ticketType || "Ingresso"}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs text-zinc-500 uppercase tracking-widest block">Código</span>
+                        <span className="font-mono font-bold text-white text-lg tracking-wider">
+                          {lastOrder.ticket?.code || "Pendente"}
+                        </span>
+                      </div>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm text-zinc-300">
+                      <div>
+                        <span className="text-xs text-zinc-500 block">Participante</span>
+                        <span className="font-medium text-white">{lastOrder.buyerName || "Visitante"}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-zinc-500 block">Carro</span>
+                        <span className="font-medium text-white">
+                          {lastOrder.carInfo?.model ? `${lastOrder.carInfo.model} (${lastOrder.carInfo.plate})` : "Não cadastrado"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {lastOrder.ticket?.code && (
+                      <div className="pt-4 border-t border-zinc-800/80 flex flex-col sm:flex-row items-center gap-4">
+                        <div className="bg-white p-2 rounded-xl shrink-0">
+                          <QRCodeCanvas value={String(lastOrder.ticket.code)} size={110} includeMargin />
+                        </div>
+                        <div className="text-xs text-zinc-400 space-y-1">
+                          <p className="font-semibold text-zinc-200">Acelere com a gente!</p>
+                          <p>Apresente este QR Code na portaria do evento para validação.</p>
+                          <p className="text-yellow-400/90 font-medium">Salve este ingresso no seu celular.</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
+
                   {lastOrder.ticket?.code && (
-                    <div className="flex items-start gap-3 text-zinc-700 dark:text-zinc-300">
-                      <Ticket size={18} className="text-yellow-500 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">Código do Ingresso</p>
-                        <p className="font-mono font-bold text-lg tracking-widest">{lastOrder.ticket.code}</p>
-                      </div>
+                    <div className="flex justify-center">
+                      <Button onClick={downloadTicket} variant="outline" size="sm" className="w-full">
+                        <Download size={16} className="mr-2 inline" /> Salvar Ingresso no Celular
+                      </Button>
                     </div>
                   )}
-                  {lastOrder.price > 0 && (
-                    <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-300">
-                      <span className="text-yellow-500 text-lg font-bold">R$</span>
-                      <div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Pago</p>
-                        <p className="font-bold text-green-600 dark:text-green-400">
-                          R$ {Number(lastOrder.price).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {lastOrder.buyerName && (
-                    <div className="flex items-center gap-3 text-zinc-700 dark:text-zinc-300">
-                      <User size={18} className="text-yellow-500 shrink-0" />
-                      <p className="text-sm">{lastOrder.buyerName}</p>
-                    </div>
-                  )}
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 pt-2 border-t border-zinc-200 dark:border-zinc-700">
-                    Apresente este código na entrada do evento. Você também pode encontrá-lo em "Minhas Inscrições".
-                  </p>
                 </div>
               ) : null}
             </div>

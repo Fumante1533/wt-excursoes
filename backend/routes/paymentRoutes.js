@@ -11,12 +11,7 @@ let createHandler = paymentController.createPreference;
 let webhookHandler = paymentController.receiveWebhook;
 let confirmHandler = paymentController.confirmPayment;
 
-if (paymentProvider === 'infinity') {
-  const infinity = require('../controllers/infinityController');
-  createHandler = infinity.createPayment;
-  webhookHandler = infinity.receiveWebhook;
-  confirmHandler = infinity.confirmPayment;
-} else if (paymentProvider === 'stripe') {
+if (paymentProvider === 'stripe') {
   const stripeController = require('../controllers/stripeController');
   createHandler = stripeController.createCheckoutSession;
   confirmHandler = async (req, res) => {

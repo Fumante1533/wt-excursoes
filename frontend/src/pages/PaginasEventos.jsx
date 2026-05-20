@@ -379,14 +379,39 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
               </div>
               <div className="p-8 flex flex-col md:col-span-2">
                 <h1 className="text-3xl font-bold text-zinc-800 dark:text-white mb-4">{evento.name}</h1>
-                <div className="flex flex-wrap items-center text-zinc-500 dark:text-zinc-400 mb-4 gap-y-2">
-                  <span className="flex items-center whitespace-nowrap"><MapPin size={18} className="mr-2 text-yellow-500" /> {evento.location}</span>
-                  <span className="flex items-center whitespace-nowrap"><Calendar size={18} className="ml-6 mr-2 text-yellow-500" />{" "}
+                <div className="flex flex-wrap items-center text-zinc-500 dark:text-zinc-400 mb-4 gap-4">
+                  <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800/60 p-2 rounded-xl border border-zinc-200/50 dark:border-zinc-700/50">
+                    <span className="flex items-center whitespace-nowrap text-zinc-800 dark:text-white font-medium text-sm">
+                      <MapPin size={18} className="mr-2 text-yellow-500" /> {evento.location}
+                    </span>
+                    <div className="flex items-center gap-1 border-l border-zinc-300 dark:border-zinc-700 pl-2">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(evento.location)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-bold text-yellow-600 dark:text-yellow-400 hover:underline px-1.5 py-0.5 rounded hover:bg-yellow-500/10 transition-colors"
+                        title="Abrir no Google Maps"
+                      >
+                        Google Maps
+                      </a>
+                      <span className="text-zinc-400 text-xs">•</span>
+                      <a
+                        href={`https://waze.com/ul?q=${encodeURIComponent(evento.location)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-bold text-yellow-600 dark:text-yellow-400 hover:underline px-1.5 py-0.5 rounded hover:bg-yellow-500/10 transition-colors"
+                        title="Abrir no Waze"
+                      >
+                        Waze
+                      </a>
+                    </div>
+                  </div>
+                  <span className="flex items-center whitespace-nowrap"><Calendar size={18} className="mr-2 text-yellow-500" />{" "}
                   {new Date(evento.date).toLocaleDateString("pt-BR", {
                     timeZone: "UTC",
                   })}</span>
                   {evento.time && (
-                    <span className="flex items-center whitespace-nowrap"><Clock size={18} className="ml-6 mr-2 text-yellow-500" /> {evento.time} {evento.timeEnd && `às ${evento.timeEnd}`}</span>
+                    <span className="flex items-center whitespace-nowrap"><Clock size={18} className="mr-2 text-yellow-500" /> {evento.time} {evento.timeEnd && `às ${evento.timeEnd}`}</span>
                   )}
                 </div>
                 <p className="text-zinc-600 dark:text-zinc-300 mb-8 flex-grow whitespace-pre-wrap">{evento.description}</p>

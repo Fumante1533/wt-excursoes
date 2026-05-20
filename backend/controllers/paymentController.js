@@ -3,7 +3,7 @@ const admin = require('../config/firebaseAdmin');
 const { generateTicketCode, normalizeTicketCode, isAdminRequest } = require('../utils/ticketUtils');
 const nodemailer = require('nodemailer');
 
-const sendTicketEmail = async (email, name, eventName, ticketCode) => {
+const sendTicketEmail = exports.sendTicketEmail = async (email, name, eventName, ticketCode) => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
   try {
     const transporter = nodemailer.createTransport({
@@ -43,8 +43,12 @@ exports.createPreference = async (req, res) => {
       return res.status(503).json({ error: 'Pagamento não configurado no servidor.' });
     }
 
-    const { evento, excursion, ticket, buyerInfo, carInfo, additionalPassengers, couponCode } = req.body || {};
+    const { evento, excursion, ticket, buyerInfo, carInfo, additionalPassengers, couponCode, paymentMethod } = req.body || {};
     console.log('[DEBUG] createPreference payload recebido:', JSON.stringify(req.body, null, 2));
+
+    const isGuest = !req.user;
+    const uid = req.user ? req.user.uid : `guest_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const tokenEmail = req.user && req.user.email ? req.user.email.trim().toLowerCase() : null;
 
     const targetExcursion = evento || excursion;
     
@@ -104,6 +108,7 @@ exports.createPreference = async (req, res) => {
     const excursionData = excursionRef.data();
     const realTicketIndex = excursionData.tickets.findIndex((t) => t.type === ticket.type);
     const realTicket = realTicketIndex >= 0 ? excursionData.tickets[realTicketIndex] : null;
+
     if (!realTicket) return res.status(400).json({ error: 'Tipo de ingresso inválido.' });
 
     // Verificar disponibilidade do lote
@@ -183,10 +188,70 @@ exports.createPreference = async (req, res) => {
       },
     };
 
+    if (paymentMethod === 'pix') {
+      const payment = new Payment(client);
+      
+      const nameParts = String((buyerInfo && buyerInfo.fullName) || 'Comprador').trim().split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Silva';
+      const cleanCpf = String((buyerInfo && buyerInfo.cpf) || '').replace(/\D/g, '');
+
+      const paymentBody = {
+        transaction_amount: Number((Number(realPrice) * totalQtyDemanded).toFixed(2)),
+        description: `${excursionData.name} (${ticket.type})`,
+        payment_method_id: 'pix',
+        payer: {
+          email: payerEmail,
+          first_name: firstName,
+          last_name: lastName,
+          identification: {
+            type: 'CPF',
+            number: cleanCpf || undefined,
+          },
+        },
+        metadata: {
+          user_id: uid,
+          is_guest: String(isGuest),
+          evento_id: String(targetExcursion.id),
+          ticket_type: ticket.type,
+          coupon_code: couponCode ? String(couponCode).toUpperCase() : '',
+          car_info: JSON.stringify(carInfo || {}),
+          additional_passengers: additionalPassengers ? JSON.stringify(additionalPassengers).substring(0, 450) : "[]",
+        },
+      };
+
+      const response = await payment.create({ body: paymentBody });
+
+      if (response && response.id) {
+        const orderRef = db.collection('users').doc(uid).collection('orders').doc(String(response.id));
+        await orderRef.set({
+          eventoId: targetExcursion.id,
+          eventoName: excursionData.name,
+          ticketType: ticket.type,
+          price: Number(realPrice) * totalQtyDemanded,
+          status: 'Pendente',
+          createdAt: new Date().toISOString(),
+          buyerName: payerEmail.split('@')[0],
+          buyerEmail: payerEmail,
+          abandonedCartSent: false,
+          paymentMethod: 'pix',
+          qrCode: response.point_of_interaction?.transaction_data?.qr_code || '',
+          qrCodeBase64: response.point_of_interaction?.transaction_data?.qr_code_base64 || ''
+        });
+
+        return res.json({
+          id: response.id,
+          qrCode: response.point_of_interaction?.transaction_data?.qr_code || '',
+          qrCodeBase64: response.point_of_interaction?.transaction_data?.qr_code_base64 || '',
+          paymentMethod: 'pix'
+        });
+      }
+      return res.status(500).json({ error: 'Não foi possível obter os dados do Pix.' });
+    }
+
     const response = await preference.create({ body });
 
     if (response && response.id) {
-      // Salva o pedido como PENDENTE para rastreio de Carrinho Abandonado
       const orderRef = db.collection('users').doc(uid).collection('orders').doc(String(response.id));
       await orderRef.set({
         eventoId: targetExcursion.id,
@@ -265,7 +330,12 @@ exports.receiveWebhook = async (req, res) => {
       const db = admin.firestore();
       const orderRef = db.collection('users').doc(userId).collection('orders').doc(String(orderData.id));
       const existing = await orderRef.get();
-      if (existing.exists) return; // já processado (idempotência)
+      if (existing.exists) {
+        const existingData = existing.data();
+        if (existingData.status === 'Pago' || existingData.status === 'approved') {
+          return; // já processado (idempotência)
+        }
+      }
 
       // Salva o ingresso principal
       const ticketCodeMain = generateTicketCode();
@@ -438,6 +508,9 @@ exports.validateTicket = async (req, res) => {
         error: 'Ingresso já validado.',
         ticket: data.ticket,
         orderId: docSnap.id,
+        buyerName: data.buyerName || data.buyerInfo?.fullName || '',
+        eventoName: data.eventoName || '',
+        carInfo: data.carInfo || data.buyerInfo || null,
       });
     }
 
@@ -460,6 +533,7 @@ exports.validateTicket = async (req, res) => {
       eventoName: data.eventoName || '',
       buyerName: data.buyerName || data.buyerInfo?.fullName || '',
       ticketCode: normalized,
+      carInfo: data.carInfo || data.buyerInfo || null,
     });
   } catch (err) {
     console.error('Erro ao validar ingresso:', err.message || err);

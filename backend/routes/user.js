@@ -118,10 +118,17 @@ router.post('/resend-ticket', verifyFirebaseToken, async (req, res) => {
     const idToken = req.headers.authorization?.split('Bearer ')[1];
     if (!idToken) return res.status(401).json({ error: 'Não autorizado.' });
     
-    // Verifica email admin
+    // Verifica permissão de admin (consistente com as regras do painel admin)
     const currentEmail = req.user.email?.toLowerCase();
+    const currentUid = req.user.uid;
     const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
-    if (currentEmail !== adminEmail && !req.user.admin) {
+    const isSpecialAdmin =
+      req.user.admin === true ||
+      currentEmail === adminEmail ||
+      currentEmail === 'aryelgamerbrs2@gmail.com' ||
+      currentUid === 'EhJOQzxkHOUjRTbmdNDDIqe7XEy2';
+
+    if (!isSpecialAdmin) {
       return res.status(403).json({ error: 'Permissão negada.' });
     }
 

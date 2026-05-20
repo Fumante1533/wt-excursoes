@@ -17,6 +17,7 @@ import {
   X,
   Download,
   Mail,
+  UserCheck,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { collection, getDocs } from "firebase/firestore";
@@ -86,9 +87,29 @@ function TabelaEventoAdmin({ eventos, onEdit, onDelete }) {
 }
 
 function ListaPedidosAdmin({ orders }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+
+  const uniqueEvents = Array.from(new Set(orders.map(o => o.eventoName).filter(Boolean)));
+
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = 
+      (order.buyerName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.buyerEmail || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.carInfo?.plate || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.carInfo?.model || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.ticket?.code || "").toLowerCase().includes(searchTerm.toLowerCase());
+      
+    const matchesEvent = selectedEvent === "" || order.eventoName === selectedEvent;
+    const matchesStatus = selectedStatus === "" || order.status === selectedStatus;
+    
+    return matchesSearch && matchesEvent && matchesStatus;
+  });
+
   const exportToCSV = () => {
-    const headers = ["Nome", "Email", "Evento", "Tipo de Ingresso", "Status", "Preço", "Placa do Carro", "Código Ingresso"];
-    const rows = orders.map(order => [
+    const headers = ["Nome", "Email", "Evento", "Tipo de Ingresso", "Status", "Preço", "Placa do Carro", "Modelo do Carro", "Código Ingresso"];
+    const rows = filteredOrders.map(order => [
       `"${order.buyerName || ""}"`,
       `"${order.buyerEmail || ""}"`,
       `"${order.eventoName || ""}"`,
@@ -96,6 +117,7 @@ function ListaPedidosAdmin({ orders }) {
       `"${order.status || ""}"`,
       order.price || 0,
       `"${order.carInfo?.plate || ""}"`,
+      `"${order.carInfo?.model || ""}"`,
       `"${order.ticket?.code || ""}"`
     ]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
@@ -106,6 +128,73 @@ function ListaPedidosAdmin({ orders }) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const printList = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    
+    const rowsHtml = filteredOrders.map(o => `
+      <tr>
+        <td>${o.buyerName || "—"}</td>
+        <td>${o.buyerEmail || "—"}</td>
+        <td>${o.eventoName || "—"}</td>
+        <td>${o.ticketType || "—"}</td>
+        <td>${o.carInfo?.plate || "—"} ${o.carInfo?.model ? `(${o.carInfo.model})` : ""}</td>
+        <td>${o.ticket?.code || "—"}</td>
+        <td>${o.status || "—"}</td>
+        <td>${o.ticket?.validated ? "Validado" : "Pendente"}</td>
+      </tr>
+    `).join("");
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Relatório de Portaria - Itajobi Cars Club</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; color: #333; }
+            h1 { text-align: center; margin-bottom: 5px; font-size: 24px; }
+            p.meta { text-align: center; color: #666; font-size: 14px; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background-color: #f3f4f6; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9fafb; }
+            @media print {
+              button { display: none; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Relatório de Portaria - Lista de Presença</h1>
+          <p class="meta">Gerado em ${new Date().toLocaleString("pt-BR")} | Total de ingressos: ${filteredOrders.length}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>E-mail</th>
+                <th>Evento</th>
+                <th>Ingresso</th>
+                <th>Veículo</th>
+                <th>Código</th>
+                <th>Pagamento</th>
+                <th>Portaria</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(() => window.close(), 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handleResendEmail = async (orderId) => {
@@ -132,28 +221,68 @@ function ListaPedidosAdmin({ orders }) {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h2 className="text-3xl font-bold text-white">Lista de Compradores</h2>
-        <button 
-          onClick={exportToCSV}
-          className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md font-semibold transition-colors flex items-center"
-        >
-          <Download size={18} className="mr-2" /> Exportar Planilha
-        </button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <button 
+            onClick={printList}
+            className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md font-semibold transition-colors flex items-center justify-center text-sm"
+          >
+            <FileText size={18} className="mr-2" /> Imprimir Portaria (PDF)
+          </button>
+          <button 
+            onClick={exportToCSV}
+            className="flex-1 sm:flex-none bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-md font-semibold transition-colors flex items-center justify-center text-sm"
+          >
+            <Download size={18} className="mr-2" /> Exportar Planilha
+          </button>
+        </div>
       </div>
+
+      {/* Filtros e Busca */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <input
+          type="text"
+          placeholder="Buscar por nome, e-mail, placa, modelo ou código..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="bg-zinc-700 text-white border border-zinc-650 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm md:col-span-2"
+        />
+        <select
+          value={selectedEvent}
+          onChange={(e) => setSelectedEvent(e.target.value)}
+          className="bg-zinc-700 text-white border border-zinc-650 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+        >
+          <option value="">Todos os Eventos</option>
+          {uniqueEvents.map((evt, idx) => (
+            <option key={idx} value={evt}>{evt}</option>
+          ))}
+        </select>
+        <select
+          value={selectedStatus}
+          onChange={(e) => setSelectedStatus(e.target.value)}
+          className="bg-zinc-700 text-white border border-zinc-650 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+        >
+          <option value="">Todos os Status</option>
+          <option value="Pago">Pago</option>
+          <option value="Pendente">Pendente</option>
+        </select>
+      </div>
+
       <div className="bg-zinc-800 rounded-lg shadow-xl overflow-x-auto">
-        <table className="w-full text-left text-zinc-300 min-w-[600px]">
+        <table className="w-full text-left text-zinc-300 min-w-[650px]">
           <thead className="bg-zinc-900/50">
             <tr className="border-b border-zinc-700">
               <th className="p-4">Comprador</th>
               <th className="p-4">Evento</th>
               <th className="p-4">Ingresso</th>
+              <th className="p-4">Veículo</th>
               <th className="p-4">Status</th>
               <th className="p-4">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {orders.map((order, index) => (
+            {filteredOrders.map((order, index) => (
               <tr key={index} className="border-b border-zinc-700 last:border-b-0 hover:bg-zinc-700/50">
                 <td className="p-4">
                   <p className="font-semibold text-white">{order.buyerName}</p>
@@ -161,6 +290,16 @@ function ListaPedidosAdmin({ orders }) {
                 </td>
                 <td className="p-4">{order.eventoName}</td>
                 <td className="p-4">{order.ticketType}</td>
+                <td className="p-4 font-mono">
+                  {order.carInfo?.plate ? (
+                    <div>
+                      <span className="font-semibold text-white">{order.carInfo.plate}</span>
+                      <span className="block text-xs text-zinc-400 font-sans">{order.carInfo.model || ""}</span>
+                    </div>
+                  ) : (
+                    <span className="text-zinc-500">—</span>
+                  )}
+                </td>
                 <td className="p-4">
                   <span
                     className={`px-3 py-1 rounded-full text-sm font-semibold ${
@@ -188,11 +327,39 @@ function ListaPedidosAdmin({ orders }) {
   );
 }
 
+function playSound(type) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    if (type === "success") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    } else {
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(120, ctx.currentTime);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    }
+  } catch (e) {
+    console.warn("AudioContext não suportado ou bloqueado:", e);
+  }
+}
+
 function ValidadorIngressos({ eventos }) {
   const [ticketCode, setTicketCode] = useState("");
   const [eventoId, setEventoId] = useState("");
   const [isValidating, setIsValidating] = useState(false);
   const [result, setResult] = useState(null);
+  const [validationError, setValidationError] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState("");
 
@@ -201,6 +368,8 @@ function ValidadorIngressos({ eventos }) {
     if (!code) { toast.error("Informe o código do ingresso."); return; }
     setIsValidating(true);
     setResult(null);
+    setValidationError(null);
+    let responseStatus = null;
     try {
       const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
       const user = auth?.currentUser;
@@ -211,12 +380,24 @@ function ValidadorIngressos({ eventos }) {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ticketCode: code, ...(eventoId ? { eventoId } : {}) }),
       });
+      responseStatus = response.status;
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Falha ao validar ingresso.");
+      if (!response.ok) {
+        if (response.status === 409) {
+          setValidationError(data);
+        } else {
+          setValidationError({ error: data.error || "Falha ao validar ingresso." });
+        }
+        throw new Error(data.error || "Falha ao validar ingresso.");
+      }
       setResult(data);
+      playSound("success");
       toast.success("Ingresso validado com sucesso!");
     } catch (err) {
-      toast.error(err.message || "Não foi possível validar.");
+      playSound("error");
+      if (responseStatus !== 409) {
+        setValidationError({ error: err.message || "Não foi possível validar." });
+      }
     } finally {
       setIsValidating(false);
     }
@@ -229,7 +410,6 @@ function ValidadorIngressos({ eventos }) {
     let stopped = false;
     (async () => {
       try {
-        // facingMode: environment = câmera traseira
         await reader.decodeFromConstraints(
           { video: { facingMode: { ideal: "environment" } } },
           "ticket-video",
@@ -240,7 +420,7 @@ function ValidadorIngressos({ eventos }) {
               stopped = true;
               setIsScanning(false);
               setTicketCode(text);
-              doValidate(text); // auto-valida imediatamente
+              doValidate(text);
             }
           }
         );
@@ -251,7 +431,7 @@ function ValidadorIngressos({ eventos }) {
     })();
     return () => {
       stopped = true;
-      try { reader.reset(); } catch (_) {}
+      try { reader.reset(); } catch (_) { /* ignore */ }
     };
   }, [isScanning]);
 
@@ -292,12 +472,45 @@ function ValidadorIngressos({ eventos }) {
         <Button onClick={() => doValidate()} disabled={isValidating} className="w-full">
           {isValidating ? "Validando..." : "✅ Validar ingresso"}
         </Button>
+
         {result && (
-          <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-center">
-            <p className="text-green-400 font-bold text-xl mb-2">✅ Ingresso Válido!</p>
-            <p className="text-white font-semibold">{result.buyerName || "—"}</p>
-            <p className="text-zinc-300">{result.eventoName || "—"}</p>
-            <p className="text-zinc-400 text-xs mt-2 font-mono">{result.ticketCode}</p>
+          <div className="p-6 rounded-xl bg-emerald-500/10 border-2 border-emerald-500 text-center transition-all duration-300">
+            <p className="text-emerald-400 font-bold text-2xl mb-2">✅ INGRESSO VÁLIDO!</p>
+            <p className="text-white font-bold text-lg">{result.buyerName || "—"}</p>
+            <p className="text-zinc-300 text-sm mt-1">{result.eventoName || "—"}</p>
+            {result.carInfo && (
+              <div className="mt-3 py-2 px-4 bg-zinc-900/50 rounded-lg inline-block text-zinc-300 font-mono text-sm border border-zinc-700">
+                🚗 {result.carInfo.model || result.carInfo.carModel} • <span className="font-bold text-yellow-400">{result.carInfo.plate || result.carInfo.carPlate}</span> • {result.carInfo.color || result.carInfo.carColor}
+              </div>
+            )}
+            <p className="text-zinc-500 text-xs mt-3 font-mono">Código: {result.ticketCode}</p>
+          </div>
+        )}
+
+        {validationError && (
+          <div className="p-6 rounded-xl bg-red-500/10 border-2 border-red-500 text-center transition-all duration-300">
+            <p className="text-red-400 font-bold text-2xl mb-2">❌ ENTRADA NEGADA!</p>
+            <p className="text-white font-semibold text-lg">{validationError.error}</p>
+            {validationError.buyerName && (
+              <div className="mt-2 text-zinc-300 text-sm">
+                <span className="font-bold text-white">Comprador:</span> {validationError.buyerName}
+              </div>
+            )}
+            {validationError.eventoName && (
+              <div className="text-zinc-400 text-xs mt-1">
+                {validationError.eventoName}
+              </div>
+            )}
+            {validationError.carInfo && (
+              <div className="mt-3 py-2 px-4 bg-zinc-900/50 rounded-lg inline-block text-zinc-300 font-mono text-sm border border-zinc-700">
+                🚗 {validationError.carInfo.model || validationError.carInfo.carModel} • <span className="font-bold text-red-400">{validationError.carInfo.plate || validationError.carInfo.carPlate}</span>
+              </div>
+            )}
+            {validationError.ticket?.validatedAt && (
+              <p className="text-zinc-500 text-xs mt-2">
+                Validado em: {new Date(validationError.ticket.validatedAt._seconds * 1000 || validationError.ticket.validatedAt).toLocaleString("pt-BR")}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -390,15 +603,17 @@ export default function PainelAdministrativo({
           const paidOrders = orders.filter(o => o.status === "Pago");
           const pendingOrders = orders.filter(o => o.status === "Pendente");
           const paidRevenue = paidOrders.reduce((s, o) => s + Number(o.price || 0), 0);
+          const checkedInCount = paidOrders.filter(o => o.ticket?.validated).length;
           return (
             <>
               <h2 className="text-3xl font-bold text-white mb-6">Dashboard</h2>
               {/* KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                 {[
                   { icon: DollarSign, label: "Receita Confirmada", value: `R$ ${paidRevenue.toFixed(2)}`, color: "text-green-400", bg: "bg-green-500/10" },
                   { icon: Package, label: "Eventos Ativos", value: eventos.length, color: "text-blue-400", bg: "bg-blue-500/10" },
-                  { icon: Users, label: "Inscrições Pagas", value: paidOrders.length, color: "text-yellow-400", bg: "bg-yellow-500/10" },
+                  { icon: UserCheck, label: "Check-in / Presença", value: `${checkedInCount} / ${paidOrders.length}`, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+                  { icon: Ticket, label: "Inscrições Pagas", value: paidOrders.length, color: "text-yellow-400", bg: "bg-yellow-500/10" },
                   { icon: BarChart2, label: "Aguardando Pagto.", value: pendingOrders.length, color: "text-orange-400", bg: "bg-orange-500/10" },
                 ].map((kpi) => (
                   <div key={kpi.label} className="bg-zinc-800 p-5 rounded-xl flex items-center gap-4 border border-zinc-700">

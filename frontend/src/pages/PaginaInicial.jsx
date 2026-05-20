@@ -157,6 +157,7 @@ export default function PaginaInicial({ onNavigate, eventos, user, db }) {
             </Card>
           </div>
         </section>
+        </>
       )}
 
       <section className="py-24 bg-zinc-50 dark:bg-zinc-950">

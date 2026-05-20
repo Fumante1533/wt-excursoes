@@ -40,7 +40,7 @@ import PaginaConta from "./pages/PaginaConta";
 import PaginaRanking from "./pages/PaginaRanking";
 import PaginaParceiros from "./pages/PaginaParceiros";
 import PaginaLoginAdmin from "./admin/PaginaLoginAdmin";
-import PainelAdministrativo from "./admin/PainelAdministrativo";
+const PainelAdministrativo = React.lazy(() => import("./admin/PainelAdministrativo"));
 import { Spinner } from "./components/AppPrimitives";
 import AppNavbar from "./components/AppNavbar";
 import AppFooter from "./components/AppFooter";
@@ -615,14 +615,20 @@ const deleteEvento = async (id) => {
         return <PaginaLoginAdmin onLogin={handleAdminLogin} />;
       case "adminDashboard":
         return (
-          <PainelAdministrativo
-            onNavigate={handleNavigate}
-            eventos={eventos}
-            onAddEvento={addEvento}
-            onUpdateEvento={updateEvento}
-            onDeleteEvento={deleteEvento}
-            onLogout={handleLogout}
-          />
+          <React.Suspense fallback={
+            <div className="h-screen w-full flex items-center justify-center bg-white dark:bg-zinc-950">
+              <Spinner />
+            </div>
+          }>
+            <PainelAdministrativo
+              onNavigate={handleNavigate}
+              eventos={eventos}
+              onAddEvento={addEvento}
+              onUpdateEvento={updateEvento}
+              onDeleteEvento={deleteEvento}
+              onLogout={handleLogout}
+            />
+          </React.Suspense>
         );
       case "blog":
         return <PaginaBlog onNavigate={handleNavigate} posts={blogPosts} />;

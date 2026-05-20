@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ShoppingBag, Calendar, Ticket, Download, Mail } from "lucide-react";
+import { Sparkles, ShoppingBag, Calendar, Ticket, Download, Mail, Bell, BellOff } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import html2canvas from "html2canvas";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -14,7 +14,8 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { toast } from "react-hot-toast";
-import { storage, auth } from "../firebaseConfig";
+import { storage, auth, messaging } from "../firebaseConfig";
+import { getToken } from "firebase/messaging";
 import PurchaseCardSkeleton from "../components/PurchaseCardSkeleton";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
 import { CartaoEvento } from "../components/CartaoEvento";
@@ -25,6 +26,7 @@ function PerfilUsuario({ user, db: firestore }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ displayName: "", cpf: "", phone: "", dob: "", photoURL: "" });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   useEffect(() => {
     let unsub;
@@ -44,6 +46,7 @@ function PerfilUsuario({ user, db: firestore }) {
               dob: data.dob || "",
               photoURL: data.photoURL || user.photoURL || "",
             });
+            setNotificationsEnabled(!!data.notificationsEnabled);
             setLoading(false);
           },
           (err) => {
@@ -60,6 +63,55 @@ function PerfilUsuario({ user, db: firestore }) {
       if (typeof unsub === "function") unsub();
     };
   }, [user, firestore]);
+
+  const toggleNotifications = async () => {
+    if (!("Notification" in window)) {
+      toast.error("Este navegador não suporta notificações.");
+      return;
+    }
+    
+    if (Notification.permission === "denied") {
+      toast.error("Notificações bloqueadas no navegador. Ative nas configurações do site.");
+      return;
+    }
+
+    try {
+      if (notificationsEnabled) {
+        const userDocRef = doc(firestore, "users", user.uid);
+        await updateDoc(userDocRef, {
+          notificationsEnabled: false,
+          fcmToken: ""
+        });
+        setNotificationsEnabled(false);
+        toast.success("Notificações desativadas.");
+      } else {
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") {
+          if (messaging) {
+            const token = await getToken(messaging, { vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY });
+            if (token) {
+              const userDocRef = doc(firestore, "users", user.uid);
+              await updateDoc(userDocRef, {
+                fcmToken: token,
+                notificationsEnabled: true
+              });
+              setNotificationsEnabled(true);
+              toast.success("Notificações ativadas com sucesso!");
+            } else {
+              toast.error("Não foi possível gerar o token de notificações.");
+            }
+          } else {
+            toast.error("Serviço de notificações não configurado.");
+          }
+        } else {
+          toast.error("Permissão de notificações negada.");
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao configurar notificações:", err);
+      toast.error("Não foi possível alternar as notificações.");
+    }
+  };
 
   if (loading) {
     return (
@@ -92,39 +144,68 @@ function PerfilUsuario({ user, db: firestore }) {
           <p className="text-sm text-zinc-500">{user?.email}</p>
         </div>
       </div>
-      <div className="space-y-4"></div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-semibold text-zinc-500">Nome</label>
+          <input
+            value={form.displayName}
+            readOnly={!!profile?.displayName}
+            onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+            className="w-full mt-1 px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-zinc-500">CPF</label>
+          <input
+            value={form.cpf}
+            readOnly={!!profile?.cpf}
+            onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+            className="w-full mt-1 px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-zinc-500">Telefone</label>
+          <input
+            value={form.phone}
+            readOnly={!!profile?.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            className="w-full mt-1 px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-white"
+          />
+        </div>
+      </div>
+
       <div className="mt-6 text-center p-4 bg-zinc-100 dark:bg-zinc-800/50 rounded-lg">
-        <p className="text-zinc-600 dark:text-zinc-400">
+        <p className="text-zinc-600 dark:text-zinc-400 text-sm">
           <Sparkles className="inline-block mr-2" size={18} />
           Em breve você poderá editar seu perfil! Estamos trabalhando nisso.
         </p>
       </div>
-      <div>
-        <label className="block text-sm font-semibold text-zinc-500">Nome</label>
-        <input
-          value={form.displayName}
-          readOnly={!!profile?.displayName}
-          onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-          className="w-full mt-1 px-4 py-2 rounded-lg border bg-white dark:bg-zinc-800"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-semibold text-zinc-500">CPF</label>
-        <input
-          value={form.cpf}
-          readOnly={!!profile?.cpf}
-          onChange={(e) => setForm({ ...form, cpf: e.target.value })}
-          className="w-full mt-1 px-4 py-2 rounded-lg border bg-white dark:bg-zinc-800"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-semibold text-zinc-500">Telefone</label>
-        <input
-          value={form.phone}
-          readOnly={!!profile?.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          className="w-full mt-1 px-4 py-2 rounded-lg border bg-white dark:bg-zinc-800"
-        />
+
+      <div className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-100 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-700/50">
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-lg transition-colors ${notificationsEnabled ? "bg-yellow-500/10 text-yellow-500" : "bg-zinc-500/10 text-zinc-500"}`}>
+              {notificationsEnabled ? <Bell size={20} className="animate-pulse" /> : <BellOff size={20} />}
+            </div>
+            <div>
+              <h4 className="font-semibold text-zinc-800 dark:text-white text-sm">Notificações Push</h4>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Receba alertas de novos lotes e encontros</p>
+            </div>
+          </div>
+          <button
+            onClick={toggleNotifications}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+              notificationsEnabled ? "bg-yellow-500" : "bg-zinc-300 dark:bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                notificationsEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
       </div>
     </Card>
   );
@@ -134,29 +215,32 @@ function ModalFormularioCarro({ isOpen, onClose, onSave, car, user }) {
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [year, setYear] = useState("");
+  const [plate, setPlate] = useState("");
+  const [color, setColor] = useState("");
   const [photoURL, setPhotoURL] = useState("");
-  const [file, setFile] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     setMake(car?.make || "");
     setModel(car?.model || "");
     setYear(car?.year || "");
+    setPlate(car?.plate || "");
+    setColor(car?.color || "");
     setPhotoURL(car?.photoURL || "");
   }, [car, isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave({ make, model, year, photoURL });
+    onSave({ make, model, year, plate, color, photoURL });
   };
 
   return (
-        <CaixaDialogo isOpen={isOpen} onClose={onClose} title={car ? "Editar Carro" : "Adicionar Carro"}>
+    <CaixaDialogo isOpen={isOpen} onClose={onClose} title={car ? "Editar Carro" : "Adicionar Carro"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input placeholder="Marca (ex: Volkswagen)" value={make} onChange={(e) => setMake(e.target.value)} required />
         <Input placeholder="Modelo (ex: Golf GTI)" value={model} onChange={(e) => setModel(e.target.value)} required />
         <Input type="number" placeholder="Ano (ex: 2022)" value={year} onChange={(e) => setYear(e.target.value)} required />
+        <Input placeholder="Placa (ex: ABC1D23)" value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} maxLength="7" required />
+        <Input placeholder="Cor (ex: Vermelho)" value={color} onChange={(e) => setColor(e.target.value)} required />
         <div className="mt-2 mb-2">
           <label className="block text-sm font-semibold text-zinc-500 mb-2">Foto do Veículo</label>
           <ImageUploader
@@ -175,7 +259,7 @@ function ModalFormularioCarro({ isOpen, onClose, onSave, car, user }) {
           </Button>
         </div>
       </form>
-        </CaixaDialogo>
+    </CaixaDialogo>
   );
 }
 
@@ -244,10 +328,24 @@ function GerenciamentoCarrosUsuario({ user, db: firestore }) {
                 className="w-full h-40 object-cover rounded-md mb-4"
               />
               <div className="flex-grow">
-                <h3 className="font-bold text-lg">
+                <h3 className="font-bold text-lg text-zinc-800 dark:text-white">
                   {car.make} {car.model}
                 </h3>
-                <p className="text-zinc-500">{car.year}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="px-2 py-0.5 text-xs font-semibold rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
+                    {car.year}
+                  </span>
+                  {car.plate && (
+                    <span className="px-2 py-0.5 text-xs font-mono font-semibold rounded bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20">
+                      {car.plate}
+                    </span>
+                  )}
+                  {car.color && (
+                    <span className="px-2 py-0.5 text-xs font-semibold rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                      {car.color}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex gap-2 mt-4">
                 <Button onClick={() => handleOpenModal(car)} variant="secondary" className="flex-1 py-2">
