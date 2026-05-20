@@ -7,7 +7,18 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      devOptions: { enabled: true },
+      devOptions: { enabled: false },
+      includeAssets: [
+        'assets/icon.png',
+        'assets/logo.png',
+        'assets/prc1.png',
+        'assets/prc2.png',
+        'assets/prc3.png',
+        'manifest.json',
+      ],
+      workbox: {
+        disableDevLogs: true,
+      },
       manifest: {
         name: 'Itajobi Cars Club',
         short_name: 'ItajobiClub',
