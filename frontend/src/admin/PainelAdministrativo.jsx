@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   DollarSign,
@@ -20,7 +20,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, collectionGroup, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import UserManagement from "./UserManagement";
@@ -570,31 +570,48 @@ export default function PainelAdministrativo({
     setEventoToDelete(null);
   };
 
-  useEffect(() => {
-    const fetchAllOrders = async () => {
+  const fetchAllOrders = useCallback(async () => {
+    try {
+      if (!db) return;
+      const getOrderTime = (order) => {
+        const raw = order.purchaseDate || order.createdAt || "";
+        if (raw?.toMillis) return raw.toMillis();
+        if (raw?._seconds) return raw._seconds * 1000;
+        const parsed = Date.parse(raw);
+        return Number.isNaN(parsed) ? 0 : parsed;
+      };
+      let allOrders = [];
       try {
-        if (!db) return;
-        const usersCollectionRef = collection(db, "users");
-        const usersSnapshot = await getDocs(usersCollectionRef);
-        let allOrders = [];
+        const ordersSnapshot = await getDocs(collectionGroup(db, "orders"));
+        allOrders = ordersSnapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          userId: docSnap.ref.parent.parent?.id || "",
+          ...docSnap.data(),
+        }));
+      } catch (collectionGroupErr) {
+        console.warn("Falha na busca collectionGroup de pedidos; usando fallback.", collectionGroupErr);
+        const usersSnapshot = await getDocs(collection(db, "users"));
         for (const userDoc of usersSnapshot.docs) {
-          const userId = userDoc.id;
-          const ordersCollectionRef = collection(db, "users", userId, "orders");
-          const ordersSnapshot = await getDocs(ordersCollectionRef);
+          const ordersSnapshot = await getDocs(collection(db, "users", userDoc.id, "orders"));
           const userOrders = ordersSnapshot.docs.map((docSnap) => ({
             id: docSnap.id,
-            userId,
+            userId: userDoc.id,
             ...docSnap.data(),
           }));
           allOrders = allOrders.concat(userOrders);
         }
-        setOrders(allOrders);
-      } catch (err) {
-        console.error("Erro ao buscar pedidos (fetchAllOrders):", err);
       }
-    };
-    fetchAllOrders();
+      allOrders.sort((a, b) => getOrderTime(b) - getOrderTime(a));
+      setOrders(allOrders);
+    } catch (err) {
+      console.error("Erro ao buscar pedidos (fetchAllOrders):", err);
+      toast.error("Não foi possível carregar a lista de compradores.");
+    }
   }, []);
+
+  useEffect(() => {
+    fetchAllOrders();
+  }, [fetchAllOrders]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -705,7 +722,7 @@ export default function PainelAdministrativo({
       case "sponsors":
         return <SponsorManagement db={db} />;
       case "issueTicket":
-        return <EmissaoIngressoManual eventos={eventos} />;
+        return <EmissaoIngressoManual eventos={eventos} onIssued={fetchAllOrders} />;
       case "logs":
         return <ActivityLogsView db={db} />;
       default:
@@ -737,7 +754,12 @@ export default function PainelAdministrativo({
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => { setActiveTab(item.id); setEditingEvento(null); setSidebarOpen(false); }}
+            onClick={() => {
+              if (item.id === "orders" || item.id === "dashboard") fetchAllOrders();
+              setActiveTab(item.id);
+              setEditingEvento(null);
+              setSidebarOpen(false);
+            }}
             className={`w-full text-left flex items-center p-3 rounded-lg mb-2 transition-colors ${
               activeTab === item.id ? "bg-violet-600 text-white" : "text-zinc-300 hover:bg-zinc-800"
             }`}

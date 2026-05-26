@@ -100,7 +100,8 @@ router.post('/issue-ticket', verifyFirebaseToken, async (req, res) => {
       },
     };
 
-    const orderRef = db.collection('users').doc(userId).collection('orders').doc(manualOrderId);
+    const userRef = db.collection('users').doc(userId);
+    const orderRef = userRef.collection('orders').doc(manualOrderId);
     await db.runTransaction(async (transaction) => {
       const freshEventSnap = await transaction.get(locatedEvent.ref);
       if (!freshEventSnap.exists) {
@@ -108,6 +109,20 @@ router.post('/issue-ticket', verifyFirebaseToken, async (req, res) => {
       }
       const { updateData } = buildTicketSalesUpdate(freshEventSnap.data(), ticketType, 1);
       transaction.update(locatedEvent.ref, updateData);
+      if (!targetUserId) {
+        transaction.set(
+          userRef,
+          {
+            name: buyerName,
+            email: buyerEmail || '',
+            isManualGuest: true,
+            lastManualOrderId: manualOrderId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
       transaction.set(orderRef, orderPayload);
     });
 

@@ -34,7 +34,7 @@ const initialForm = {
   targetUserId: "",
 };
 
-export default function EmissaoIngressoManual({ eventos }) {
+export default function EmissaoIngressoManual({ eventos, onIssued }) {
   const [selectedEvento, setSelectedEvento] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [isLoading, setIsLoading] = useState(false);
@@ -91,6 +91,7 @@ export default function EmissaoIngressoManual({ eventos }) {
       if (!response.ok) throw new Error(data.error || "Erro ao emitir ingresso.");
 
       setResult(data);
+      onIssued?.(data);
       toast.success(`Ingresso ${data.ticketCode} emitido com sucesso!`);
     } catch (err) {
       toast.error(err.message);
