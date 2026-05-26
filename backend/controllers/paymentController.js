@@ -541,6 +541,40 @@ exports.confirmPayment = async (req, res) => {
   }
 };
 
+function isFirestoreIndexError(err) {
+  const message = String(err && err.message ? err.message : err || '');
+  return err && (err.code === 9 || message.includes('requires an index') || message.includes('FAILED_PRECONDITION'));
+}
+
+async function findOrderDocByTicketCode(db, normalizedTicketCode, eventoId) {
+  const expectedEventId = eventoId ? String(eventoId) : '';
+  const matches = (docSnap) => {
+    const data = docSnap.data() || {};
+    const storedCode = normalizeTicketCode(data.ticket && data.ticket.code);
+    const storedEventId = String(data.eventoId || '');
+    return storedCode === normalizedTicketCode && (!expectedEventId || storedEventId === expectedEventId);
+  };
+
+  try {
+    const snap = await db.collectionGroup('orders').where('ticket.code', '==', normalizedTicketCode).limit(10).get();
+    if (!snap.empty) {
+      return snap.docs.find(matches) || null;
+    }
+  } catch (err) {
+    if (!isFirestoreIndexError(err)) throw err;
+    console.warn('validateTicket: collectionGroup index unavailable; falling back to user order scan.', err.message || err);
+  }
+
+  const usersSnap = await db.collection('users').get();
+  for (const userDoc of usersSnap.docs) {
+    const ordersSnap = await userDoc.ref.collection('orders').get();
+    const found = ordersSnap.docs.find(matches);
+    if (found) return found;
+  }
+
+  return null;
+}
+
 exports.validateTicket = async (req, res) => {
   try {
     if (!isAdminRequest(req.user)) {
@@ -553,18 +587,11 @@ exports.validateTicket = async (req, res) => {
     }
 
     const db = admin.firestore();
-    const q = db.collectionGroup('orders').where('ticket.code', '==', normalized).limit(10);
-    const snap = await q.get();
-    if (snap.empty) {
-      return res.status(404).json({ error: 'Ingresso não encontrado.' });
-    }
-
-    const docSnap = eventoId
-      ? snap.docs.find((doc) => String(doc.data().eventoId || '') === String(eventoId))
-      : snap.docs[0];
-
+    const docSnap = await findOrderDocByTicketCode(db, normalized, eventoId);
     if (!docSnap) {
-      return res.status(404).json({ error: 'Ingresso não encontrado para este evento.' });
+      return res.status(404).json({
+        error: eventoId ? 'Ingresso não encontrado para este evento.' : 'Ingresso não encontrado.',
+      });
     }
     let validatedData;
     let alreadyValidated = false;
