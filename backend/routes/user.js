@@ -50,17 +50,21 @@ router.post('/link-guest-orders', verifyFirebaseToken, async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Usuário sem e-mail.' });
 
     const db = admin.firestore();
-    const ordersQuery = db.collectionGroup('orders').where('buyerEmail', '==', email);
-    const snap = await ordersQuery.get();
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const snap = await db.collectionGroup('orders').get();
+    const matchingOrders = snap.docs.filter((docSnap) => {
+      const data = docSnap.data() || {};
+      return String(data.buyerEmail || '').trim().toLowerCase() === normalizedEmail;
+    });
     
-    if (snap.empty) {
+    if (matchingOrders.length === 0) {
       return res.json({ message: 'Nenhum pedido de visitante encontrado.' });
     }
 
     const batch = db.batch();
     let movedCount = 0;
 
-    snap.docs.forEach(docSnap => {
+    matchingOrders.forEach(docSnap => {
       // O caminho é users/{userId}/orders/{orderId}
       const parentUserRef = docSnap.ref.parent.parent;
       if (parentUserRef && parentUserRef.id.startsWith('guest_')) {
