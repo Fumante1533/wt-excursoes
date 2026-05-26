@@ -553,16 +553,19 @@ exports.validateTicket = async (req, res) => {
     }
 
     const db = admin.firestore();
-    let q = db.collectionGroup('orders').where('ticket.code', '==', normalized).limit(1);
-    if (eventoId) {
-      q = q.where('eventoId', '==', String(eventoId));
-    }
+    const q = db.collectionGroup('orders').where('ticket.code', '==', normalized).limit(10);
     const snap = await q.get();
     if (snap.empty) {
       return res.status(404).json({ error: 'Ingresso não encontrado.' });
     }
 
-    const docSnap = snap.docs[0];
+    const docSnap = eventoId
+      ? snap.docs.find((doc) => String(doc.data().eventoId || '') === String(eventoId))
+      : snap.docs[0];
+
+    if (!docSnap) {
+      return res.status(404).json({ error: 'Ingresso não encontrado para este evento.' });
+    }
     let validatedData;
     let alreadyValidated = false;
 
