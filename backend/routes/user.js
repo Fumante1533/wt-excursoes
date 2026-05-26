@@ -42,6 +42,23 @@ router.post('/avatar', verifyFirebaseToken, upload.single('avatar'), (req, res) 
 
 const admin = require('../config/firebaseAdmin');
 
+async function getAllOrderDocs(db) {
+  try {
+    const snap = await db.collectionGroup('orders').get();
+    return snap.docs;
+  } catch (err) {
+    console.warn('linkGuestOrders: collectionGroup order scan failed; falling back to user order scan.', err.message || err);
+  }
+
+  const usersSnap = await db.collection('users').get();
+  const docs = [];
+  for (const userDoc of usersSnap.docs) {
+    const ordersSnap = await userDoc.ref.collection('orders').get();
+    docs.push(...ordersSnap.docs);
+  }
+  return docs;
+}
+
 // POST /api/user/link-guest-orders
 // Vincula pedidos de visitante ao usuário recém cadastrado/logado
 router.post('/link-guest-orders', verifyFirebaseToken, async (req, res) => {
@@ -51,8 +68,8 @@ router.post('/link-guest-orders', verifyFirebaseToken, async (req, res) => {
 
     const db = admin.firestore();
     const normalizedEmail = String(email).trim().toLowerCase();
-    const snap = await db.collectionGroup('orders').get();
-    const matchingOrders = snap.docs.filter((docSnap) => {
+    const orderDocs = await getAllOrderDocs(db);
+    const matchingOrders = orderDocs.filter((docSnap) => {
       const data = docSnap.data() || {};
       return String(data.buyerEmail || '').trim().toLowerCase() === normalizedEmail;
     });

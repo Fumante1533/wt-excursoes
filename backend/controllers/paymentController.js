@@ -558,11 +558,20 @@ async function findOrderDocByTicketCode(db, normalizedTicketCode, eventoId) {
   try {
     const snap = await db.collectionGroup('orders').where('ticket.code', '==', normalizedTicketCode).limit(10).get();
     if (!snap.empty) {
-      return snap.docs.find(matches) || null;
+      const found = snap.docs.find(matches);
+      if (found) return found;
     }
   } catch (err) {
     if (!isFirestoreIndexError(err)) throw err;
-    console.warn('validateTicket: collectionGroup index unavailable; falling back to user order scan.', err.message || err);
+    console.warn('validateTicket: collectionGroup index unavailable; falling back to full order scan.', err.message || err);
+  }
+
+  try {
+    const allOrdersSnap = await db.collectionGroup('orders').get();
+    const found = allOrdersSnap.docs.find(matches);
+    if (found) return found;
+  } catch (err) {
+    console.warn('validateTicket: full collectionGroup order scan failed; falling back to user order scan.', err.message || err);
   }
 
   const usersSnap = await db.collection('users').get();
