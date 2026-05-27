@@ -133,7 +133,7 @@ export default function PaginaRanking({ onNavigate }) {
                         : "bg-gradient-to-br from-violet-600 to-purple-500 text-white"
                     }`}>
                       {member.photoURL ? (
-                        <img src={member.photoURL} alt={member.displayName} className="w-full h-full rounded-full object-cover" />
+                        <img src={member.photoURL} alt={member.displayName} loading="lazy" decoding="async" className="w-full h-full rounded-full object-cover" />
                       ) : (
                         member.displayName.charAt(0).toUpperCase()
                       )}

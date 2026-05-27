@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { Car } from "lucide-react";
-import { Wallet } from "@mercadopago/sdk-react";
+import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 import { db, auth } from "../firebaseConfig";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
 
@@ -29,6 +29,20 @@ export default function PaginaCheckout({ cart, user }) {
   const [copied, setCopied] = useState(false);
   const [garageCars, setGarageCars] = useState([]);
   const [selectedGarageCarId, setSelectedGarageCarId] = useState("");
+
+  useEffect(() => {
+    const mpPublicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
+    if (!mpPublicKey) {
+      console.warn("VITE_MP_PUBLIC_KEY nao definida; Mercado Pago desabilitado.");
+      return;
+    }
+
+    try {
+      initMercadoPago(mpPublicKey, { locale: "pt-BR" });
+    } catch (err) {
+      console.warn("Falha ao inicializar Mercado Pago; checkout nao deve travar:", err);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchGarage = async () => {
@@ -578,6 +592,7 @@ export default function PaginaCheckout({ cart, user }) {
                 <img
                   src={`data:image/png;base64,${pixData.qrCodeBase64}`}
                   alt="QR Code Pix"
+                  decoding="async"
                   className="w-48 h-48 object-contain"
                 />
               </div>

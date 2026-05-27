@@ -51,7 +51,7 @@ export default function AppFooter({ onNavigate, db }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center cursor-pointer mb-4" onClick={() => onNavigate("home")}>
-              <img src="/assets/logo.png" alt="Itajobi Cars Club Logo" className="h-40 w-auto" />
+              <img src="/assets/logo.png" alt="Itajobi Cars Club Logo" loading="lazy" decoding="async" className="h-40 w-auto" />
             </div>
             <p className="mt-4 text-zinc-400">Sua paixão, nossa comunidade. Acelerando juntos.</p>
             <div className="mt-4 flex space-x-4">
@@ -89,6 +89,8 @@ export default function AppFooter({ onNavigate, db }) {
                       <img
                         src={s.logoUrl}
                         alt={`Logo ${s.name}`}
+                        loading="lazy"
+                        decoding="async"
                         className="bg-zinc-700 rounded-full h-12 w-12 object-contain"
                       />
                     ) : (

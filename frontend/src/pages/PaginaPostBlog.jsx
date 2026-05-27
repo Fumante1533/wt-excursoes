@@ -14,7 +14,7 @@ const PaginaPostBlog = ({ onNavigate, post }) => {
                     <p className="text-zinc-500 dark:text-zinc-400 mb-6">
                         Por {post.author} em {post.createdAt?.toDate().toLocaleDateString('pt-BR')}
                     </p>
-                    <img src={post.imageUrl || 'https://via.placeholder.com/800x400'} alt={post.title} className="w-full rounded-lg mb-8" />
+                    <img src={post.imageUrl || 'https://via.placeholder.com/800x400'} alt={post.title} loading="lazy" decoding="async" className="w-full rounded-lg mb-8" />
                     <div className="prose dark:prose-invert max-w-none text-zinc-600 dark:text-zinc-300 whitespace-pre-wrap">
                         {post.content}
                     </div>

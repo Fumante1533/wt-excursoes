@@ -231,7 +231,7 @@ function ModalGaleria({ isOpen, onClose, imageUrl }) {
           className="relative max-w-4xl max-h-[90vh] w-full p-4"
           onClick={(e) => e.stopPropagation()}
         >
-          <img src={imageUrl} alt="Visualização da Galeria" className="w-full h-full object-contain rounded-lg" />
+          <img src={imageUrl} alt="Visualização da Galeria" decoding="async" className="w-full h-full object-contain rounded-lg" />
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 bg-black/50 rounded-full text-white hover:bg-black/80 transition-colors"
@@ -357,6 +357,8 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                       transition={{ duration: 0.3 }}
                       src={activeImage}
                       alt={evento.name}
+                      fetchPriority="high"
+                      decoding="async"
                       className="w-full h-96 object-cover"
                     />
                   </AnimatePresence>
@@ -367,6 +369,8 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                       key={i}
                       src={img}
                       onClick={() => setActiveImage(img)}
+                      loading="lazy"
+                      decoding="async"
                       className={`w-20 h-20 object-cover rounded-lg cursor-pointer border-4 transition-all ${
                         activeImage === img
                           ? "border-violet-500 scale-105"
@@ -642,6 +646,8 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                         <img
                           src={imgUrl}
                           alt={`Foto ${index + 1} do evento ${evento.name}`}
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
                         />
                       </motion.div>

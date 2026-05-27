@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Calendar, Car, CheckCircle, Clock, Download, ShieldCheck, XCircle } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
-import html2canvas from "html2canvas";
 import { toast } from "react-hot-toast";
 import { Button, Card, PageWrapper, Spinner } from "../components/AppPrimitives";
 import { formatValidationDate, getTicketQrValue } from "../utils/ticket";
@@ -36,6 +35,7 @@ export default function PaginaIngresso({ ticketCode, ticketToken, onNavigate }) 
     const element = document.getElementById("public-ticket-card");
     if (!element) return;
     try {
+      const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#18181b" });
       const link = document.createElement("a");
       link.download = `ingresso-${ticketData?.ticket?.code || ticketCode}.png`;

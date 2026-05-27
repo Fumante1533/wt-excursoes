@@ -94,7 +94,7 @@ export default function AppNavbar({
         <div className="flex items-center justify-between h-20">
           <div className="flex-1 flex items-center justify-start">
             <div className="flex items-center cursor-pointer" onClick={() => onNavigate("home")}>
-              <img src="/assets/logo.png" alt="Itajobi Cars Club Logo" className="h-14 w-auto" />
+              <img src="/assets/logo.png" alt="Itajobi Cars Club Logo" fetchPriority="high" decoding="async" className="h-14 w-auto" />
             </div>
           </div>
 

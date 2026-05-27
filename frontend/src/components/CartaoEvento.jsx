@@ -23,6 +23,8 @@ export const CartaoEvento = ({ event, onNavigate, index = 0, user, db }) => {
           <img
             src={event.image}
             alt={event.name}
+            loading="lazy"
+            decoding="async"
             className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-500"
           />
           <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-black/60 to-transparent"></div>

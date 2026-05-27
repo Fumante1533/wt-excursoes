@@ -1,0 +1,1 @@
+function t(t){return t?String(t.qrPayload||t.securePayload||t.code||""):""}function e(t){if(!t)return"";if("function"==typeof t?.toDate)return t.toDate().toLocaleString("pt-BR");if(t?._seconds)return new Date(1e3*t._seconds).toLocaleString("pt-BR");const e=new Date(t);return Number.isNaN(e.getTime())?"":e.toLocaleString("pt-BR")}export{e as f,t as g};

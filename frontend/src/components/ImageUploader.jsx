@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Upload } from "lucide-react";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "../firebaseConfig";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { app } from "../firebaseConfig";
 import { Input, Button, Spinner } from "./AppPrimitives";
 import { toast } from "react-hot-toast";
 
@@ -81,6 +81,7 @@ export const ImageUploader = ({
     const loadingToast = toast.loading("Otimizando e enviando imagem...");
 
     try {
+      const storage = getStorage(app);
       const optimizedFile = await compressImageToWebP(file);
       const filename = `${uploadPath}/${Date.now()}_${optimizedFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
       const storageRef = ref(storage, filename);

@@ -105,6 +105,8 @@ export default function PaginaParceiros() {
                             <img
                               src={s.logoUrl}
                               alt={s.name}
+                              loading="lazy"
+                              decoding="async"
                               className="max-h-full max-w-full object-contain"
                             />
                           ) : (

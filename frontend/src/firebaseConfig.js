@@ -1,9 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-import { getAnalytics } from "firebase/analytics";
-import { getMessaging } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
@@ -43,14 +40,14 @@ try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
-    storage = getStorage(app);
+    storage = null;
     analytics =
       typeof window !== "undefined" && firebaseConfig.measurementId
-        ? getAnalytics(app)
+        ? null
         : null;
     if (typeof window !== "undefined") {
       try {
-        messaging = getMessaging(app);
+        messaging = null;
       } catch (messagingErr) {
         console.warn("Firebase Messaging não é suportado neste navegador:", messagingErr);
       }

@@ -18,30 +18,7 @@ import {
 import { Toaster, toast } from "react-hot-toast";
 import { logActivity } from "./utils/ActivityLogger";
 import { auth, db, firebaseConfigError } from "./firebaseConfig";
-import PaginaBlog from "./pages/PaginaBlog";
-import PaginaPostBlog from "./pages/PaginaPostBlog";
-import PaginaFaq from "./pages/PaginaFaq";
-import PaginaResultadoTap from "./pages/PaginaResultadoTap";
-import PaginaSobre from "./pages/PaginaSobre";
-import PaginaPrivacidade from "./pages/PaginaPrivacidade";
-import PaginaTermos from "./pages/PaginaTermos";
 import PaginaInicial from "./pages/PaginaInicial";
-import { 
-  PaginaListaEventos,
-  PaginaEventosPassados,
-  PaginaCentralEventos,
-  PaginaDetalheEvento,
-} from "./pages/PaginasEventos";
-import PaginaCheckout from "./pages/PaginaCheckout";
-import PaginaStatusPagamento from "./pages/PaginaStatusPagamento";
-import PaginaAutenticacao from "./pages/PaginaAutenticacao";
-import PaginaPerfilPublico from "./pages/PaginaPerfilPublico";
-import PaginaConta from "./pages/PaginaConta";
-import PaginaRanking from "./pages/PaginaRanking";
-import PaginaParceiros from "./pages/PaginaParceiros";
-import PaginaIngresso from "./pages/PaginaIngresso";
-import PaginaLoginAdmin from "./admin/PaginaLoginAdmin";
-const PainelAdministrativo = React.lazy(() => import("./admin/PainelAdministrativo"));
 import { Spinner } from "./components/AppPrimitives";
 import AppNavbar from "./components/AppNavbar";
 import AppFooter from "./components/AppFooter";
@@ -49,24 +26,36 @@ import CarrinhoLateral from "./components/CarrinhoLateral";
 import { initialEvents } from "./data/initialEvents";
 import { initialBlogPosts } from "./data/initialBlogPosts";
 import { initialFaqs } from "./data/initialFaqs";
-import { initMercadoPago } from "@mercadopago/sdk-react";
-import { loadStripe } from "@stripe/stripe-js";
+
+const lazyNamed = (loader, exportName) =>
+  React.lazy(() => loader().then((module) => ({ default: module[exportName] })));
+
+const PaginaBlog = React.lazy(() => import("./pages/PaginaBlog"));
+const PaginaPostBlog = React.lazy(() => import("./pages/PaginaPostBlog"));
+const PaginaFaq = React.lazy(() => import("./pages/PaginaFaq"));
+const PaginaResultadoTap = React.lazy(() => import("./pages/PaginaResultadoTap"));
+const PaginaSobre = React.lazy(() => import("./pages/PaginaSobre"));
+const PaginaPrivacidade = React.lazy(() => import("./pages/PaginaPrivacidade"));
+const PaginaTermos = React.lazy(() => import("./pages/PaginaTermos"));
+const PaginaListaEventos = lazyNamed(() => import("./pages/PaginasEventos"), "PaginaListaEventos");
+const PaginaEventosPassados = lazyNamed(() => import("./pages/PaginasEventos"), "PaginaEventosPassados");
+const PaginaCentralEventos = lazyNamed(() => import("./pages/PaginasEventos"), "PaginaCentralEventos");
+const PaginaDetalheEvento = lazyNamed(() => import("./pages/PaginasEventos"), "PaginaDetalheEvento");
+const PaginaCheckout = React.lazy(() => import("./pages/PaginaCheckout"));
+const PaginaStatusPagamento = React.lazy(() => import("./pages/PaginaStatusPagamento"));
+const PaginaAutenticacao = React.lazy(() => import("./pages/PaginaAutenticacao"));
+const PaginaPerfilPublico = React.lazy(() => import("./pages/PaginaPerfilPublico"));
+const PaginaConta = React.lazy(() => import("./pages/PaginaConta"));
+const PaginaRanking = React.lazy(() => import("./pages/PaginaRanking"));
+const PaginaParceiros = React.lazy(() => import("./pages/PaginaParceiros"));
+const PaginaIngresso = React.lazy(() => import("./pages/PaginaIngresso"));
+const PaginaLoginAdmin = React.lazy(() => import("./admin/PaginaLoginAdmin"));
+const PainelAdministrativo = React.lazy(() => import("./admin/PainelAdministrativo"));
 
 // Credenciais de admin — lidas do .env, NUNCA hardcoded aqui
 const ADMIN_EMAIL    = (import.meta.env.VITE_ADMIN_EMAIL   || "").trim().toLowerCase();
 const ADMIN_EMAIL_2  = (import.meta.env.VITE_ADMIN_EMAIL_2 || "").trim().toLowerCase();
 const ADMIN_UID      = (import.meta.env.VITE_ADMIN_UID     || "").trim();
-
-const MP_PUBLIC_KEY = import.meta.env.VITE_MP_PUBLIC_KEY;
-try {
-  if (MP_PUBLIC_KEY) {
-    initMercadoPago(MP_PUBLIC_KEY, { locale: "pt-BR" });
-      } else {
-    console.warn("VITE_MP_PUBLIC_KEY não definida; Mercado Pago desabilitado.");
-  }
-    } catch (err) {
-  console.warn("Falha ao inicializar Mercado Pago; site não deve travar:", err);
-}
 
 function routeToPage(location) {
   const currentPath = (location.pathname || "/").replace(/\/$/, "") || "/";
@@ -158,6 +147,14 @@ function setMetaTag(selector, attr, value) {
   tag.setAttribute(attr, value);
 }
 
+function PageLoader() {
+  return (
+    <div className="h-screen w-full flex items-center justify-center bg-white dark:bg-zinc-950">
+      <Spinner />
+    </div>
+  );
+}
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -179,11 +176,6 @@ export default function App() {
   useEffect(() => {
     try {
       setFirebaseInitialized(true);
-
-      const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-      if (stripePublicKey) {
-        loadStripe(stripePublicKey);
-      }
     } catch (error) {
       console.error("Falha ao inicializar Firebase:", error);
       setFirebaseError("Não foi possível conectar aos serviços.");
@@ -354,6 +346,25 @@ export default function App() {
           unsubscribeFaqs();
         };
     }, [firebaseInitialized]);
+
+  useEffect(() => {
+    if (page !== "checkout") return;
+    const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+    if (!stripePublicKey) return;
+
+    let isActive = true;
+    import("@stripe/stripe-js")
+      .then(({ loadStripe }) => {
+        if (isActive) loadStripe(stripePublicKey);
+      })
+      .catch((err) => {
+        console.warn("Falha ao carregar Stripe sob demanda:", err);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [page]);
 
 
   useEffect(() => {
@@ -709,20 +720,14 @@ const deleteEvento = async (id) => {
         return <PaginaLoginAdmin onLogin={handleAdminLogin} />;
       case "adminDashboard":
         return (
-          <React.Suspense fallback={
-            <div className="h-screen w-full flex items-center justify-center bg-white dark:bg-zinc-950">
-              <Spinner />
-            </div>
-          }>
-            <PainelAdministrativo
-              onNavigate={handleNavigate}
-              eventos={eventos}
-              onAddEvento={addEvento}
-              onUpdateEvento={updateEvento}
-              onDeleteEvento={deleteEvento}
-              onLogout={handleLogout}
-            />
-          </React.Suspense>
+          <PainelAdministrativo
+            onNavigate={handleNavigate}
+            eventos={eventos}
+            onAddEvento={addEvento}
+            onUpdateEvento={updateEvento}
+            onDeleteEvento={deleteEvento}
+            onLogout={handleLogout}
+          />
         );
       case "blog":
         return <PaginaBlog onNavigate={handleNavigate} posts={blogPosts} />;
@@ -799,7 +804,9 @@ const deleteEvento = async (id) => {
           onNavigate={handleNavigate}
       />
       <AnimatePresence mode="wait">
-        <main key={page}>{renderPage()}</main>
+        <main key={page}>
+          <React.Suspense fallback={<PageLoader />}>{renderPage()}</React.Suspense>
+        </main>
       </AnimatePresence>
       {isFullPageLayout && <AppFooter onNavigate={handleNavigate} db={db} />}
     </div>

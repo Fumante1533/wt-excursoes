@@ -125,6 +125,8 @@ export default function PaginaInicial({ onNavigate, eventos, user, db }) {
               <img
                 src={nextEvent.image}
                 alt={nextEvent.name}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover min-h-[300px]"
               />
               <div className="p-8 flex flex-col justify-center">
@@ -303,13 +305,13 @@ export default function PaginaInicial({ onNavigate, eventos, user, db }) {
           </p>
           <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-8">
             <div className="grayscale hover:grayscale-0 transition-all duration-300">
-              <img src="/assets/prc1.png" alt="Logo Oficina do Zé" className="h-20" />
+              <img src="/assets/prc1.png" alt="Logo Oficina do Zé" loading="lazy" decoding="async" className="h-20" />
             </div>
             <div className="grayscale hover:grayscale-0 transition-all duration-300">
-              <img src="/assets/prc2.png" alt="Logo Tuning Parts RP" className="h-20" />
+              <img src="/assets/prc2.png" alt="Logo Tuning Parts RP" loading="lazy" decoding="async" className="h-20" />
             </div>
             <div className="grayscale hover:grayscale-0 transition-all duration-300">
-              <img src="/assets/prc3.png" alt="Logo Detailing Master" className="h-20" />
+              <img src="/assets/prc3.png" alt="Logo Detailing Master" loading="lazy" decoding="async" className="h-20" />
             </div>
           </div>
         </div>

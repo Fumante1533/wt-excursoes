@@ -4,7 +4,6 @@ import { collection, query, orderBy, limit, getDocs, collectionGroup, where } fr
 import { Card, Button, PageWrapper, Spinner } from "../components/AppPrimitives";
 import { db } from "../firebaseConfig";
 import { QRCodeCanvas } from "qrcode.react";
-import html2canvas from "html2canvas";
 import { toast } from "react-hot-toast";
 import { getTicketQrValue } from "../utils/ticket";
 
@@ -18,6 +17,7 @@ export default function PaginaStatusPagamento({ onNavigate, status, user }) {
     const element = document.getElementById("ticket-preview");
     if (!element) return;
     try {
+      const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#18181b" });
       const dataUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");

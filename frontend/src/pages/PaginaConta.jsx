@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ShoppingBag, Calendar, Ticket, Download, Mail, Bell, BellOff } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
-import html2canvas from "html2canvas";
 import {
   collection,
   doc,
@@ -13,8 +12,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { toast } from "react-hot-toast";
-import { auth, messaging } from "../firebaseConfig";
-import { getToken } from "firebase/messaging";
+import { auth, app } from "../firebaseConfig";
 import PurchaseCardSkeleton from "../components/PurchaseCardSkeleton";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
 import { CartaoEvento } from "../components/CartaoEvento";
@@ -87,7 +85,9 @@ function PerfilUsuario({ user, db: firestore }) {
       } else {
         const permission = await Notification.requestPermission();
         if (permission === "granted") {
-          if (messaging) {
+          if (app) {
+            const { getMessaging, getToken } = await import("firebase/messaging");
+            const messaging = getMessaging(app);
             const token = await getToken(messaging, { vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY });
             if (token) {
               const userDocRef = doc(firestore, "users", user.uid);
@@ -325,6 +325,8 @@ function GerenciamentoCarrosUsuario({ user, db: firestore }) {
               <img
                 src={car.photoURL || "https://via.placeholder.com/400x300?text=Sem+Foto"}
                 alt={`${car.make} ${car.model}`}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-40 object-cover rounded-md mb-4"
               />
               <div className="flex-grow">
@@ -416,6 +418,7 @@ function ComprasUsuario({ user, eventos, onNavigate, db: firestore }) {
     const element = document.getElementById(`ticket-${orderId}`);
     if (!element) return;
     try {
+      const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#18181b" });
       const dataUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");
@@ -461,6 +464,8 @@ function ComprasUsuario({ user, eventos, onNavigate, db: firestore }) {
             <img
               src={eventoDetails?.image}
               alt={eventName}
+              loading="lazy"
+              decoding="async"
               className="w-full md:w-48 h-48 md:h-32 object-cover rounded-lg"
             />
             <div className="flex-grow">

@@ -84,6 +84,8 @@ export default function PaginaPerfilPublico({ userId, onNavigate }) {
                     <img
                       src={car.photoURL || "https://via.placeholder.com/400x300?text=Sem+Foto"}
                       alt={`${car.make} ${car.model}`}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-40 object-cover rounded-md mb-4"
                     />
                     <h3 className="font-bold text-lg">

@@ -55,22 +55,59 @@ export default defineConfig({
         // Code Splitting: separa código do admin em chunk próprio
         // Assim o visitante comum NÃO baixa o painel administrativo
         manualChunks(id) {
-          // Firebase SDK — chunk separado (cache longo no browser)
-          if (id.includes('node_modules/firebase')) {
-            return 'firebase';
-          }
-          // Painel Admin — chunk isolado, só carrega em /admin
-          if (id.includes('/admin/')) {
-            return 'admin';
-          }
-          // Mercado Pago SDK
-          if (id.includes('@mercadopago') || id.includes('@stripe')) {
-            return 'payment';
-          }
-          // Outras dependências de terceiros
-          if (id.includes('node_modules')) {
+          const normalizedId = id.replace(/\\/g, '/');
+
+          if (normalizedId.includes('node_modules')) {
+            if (
+              normalizedId.includes('node_modules/react') ||
+              normalizedId.includes('node_modules/react-dom') ||
+              normalizedId.includes('node_modules/react-router') ||
+              normalizedId.includes('node_modules/scheduler')
+            ) {
+              return 'react';
+            }
+
+            if (
+              normalizedId.includes('node_modules/firebase') ||
+              normalizedId.includes('node_modules/@firebase')
+            ) {
+              return 'firebase';
+            }
+
+            if (normalizedId.includes('node_modules/framer-motion')) {
+              return 'motion';
+            }
+
+            if (normalizedId.includes('node_modules/lucide-react')) {
+              return 'icons';
+            }
+
+            if (
+              normalizedId.includes('node_modules/@mercadopago') ||
+              normalizedId.includes('node_modules/@stripe')
+            ) {
+              return 'payment';
+            }
+
+            if (normalizedId.includes('node_modules/qrcode.react')) {
+              return 'qrcode';
+            }
+
+            if (
+              normalizedId.includes('node_modules/html2canvas') ||
+              normalizedId.includes('node_modules/css-line-break') ||
+              normalizedId.includes('node_modules/text-segmentation')
+            ) {
+              return 'capture';
+            }
+
+            if (normalizedId.includes('node_modules/@zxing')) {
+              return 'scanner';
+            }
+
             return 'vendor';
           }
+
         }
       }
     }
