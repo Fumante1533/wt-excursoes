@@ -84,12 +84,19 @@ export default function PaginaInicial({ onNavigate, eventos, user, db }) {
   return (
     <PageWrapper>
       <section
-        className="relative h-screen flex items-center justify-center text-white text-center bg-cover bg-center"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1605516284242-561500373c19?q=80&w=2070&auto=format&fit=crop')",
-        }}
+        className="relative h-screen flex items-center justify-center text-white text-center overflow-hidden bg-black"
       >
+        <picture className="absolute inset-0">
+          <source media="(max-width: 767px)" srcSet="/assets/hero-mobile.webp" />
+          <img
+            src="/assets/hero-desktop.webp"
+            alt=""
+            aria-hidden="true"
+            fetchPriority="high"
+            decoding="async"
+            className="h-full w-full object-cover object-center"
+          />
+        </picture>
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/20"></div>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
