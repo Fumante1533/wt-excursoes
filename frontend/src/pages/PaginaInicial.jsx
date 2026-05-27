@@ -98,6 +98,7 @@ export default function PaginaInicial({ onNavigate, eventos, user, db }) {
           />
         </picture>
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/20"></div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-b from-transparent via-black/75 to-zinc-950"></div>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
