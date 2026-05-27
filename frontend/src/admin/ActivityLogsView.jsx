@@ -6,11 +6,13 @@ import { Activity, Clock, User } from "lucide-react";
 export default function ActivityLogsView({ db }) {
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeType, setActiveType] = useState("activity_logs");
 
   useEffect(() => {
     if (!db) return;
+    setIsLoading(true);
     const q = query(
-      collection(db, "activity_logs"),
+      collection(db, activeType),
       orderBy("timestamp", "desc"),
       limit(100)
     );
@@ -25,7 +27,15 @@ export default function ActivityLogsView({ db }) {
     });
 
     return () => unsubscribe();
-  }, [db]);
+  }, [db, activeType]);
+
+  const formatLogDate = (value) => {
+    if (!value) return "Data desconhecida";
+    if (typeof value.toDate === "function") return value.toDate().toLocaleString("pt-BR");
+    if (value._seconds) return new Date(value._seconds * 1000).toLocaleString("pt-BR");
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? "Data desconhecida" : parsed.toLocaleString("pt-BR");
+  };
 
   if (isLoading) {
     return (
@@ -42,6 +52,20 @@ export default function ActivityLogsView({ db }) {
           <Activity className="text-violet-500" />
           Logs de Atividades
         </h2>
+      </div>
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setActiveType("activity_logs")}
+          className={`px-4 py-2 rounded-md text-sm font-bold ${activeType === "activity_logs" ? "bg-violet-600 text-white" : "bg-zinc-800 text-zinc-300 border border-zinc-700"}`}
+        >
+          Atividades
+        </button>
+        <button
+          onClick={() => setActiveType("system_logs")}
+          className={`px-4 py-2 rounded-md text-sm font-bold ${activeType === "system_logs" ? "bg-red-600 text-white" : "bg-zinc-800 text-zinc-300 border border-zinc-700"}`}
+        >
+          Erros do sistema
+        </button>
       </div>
 
       <div className="bg-zinc-800 rounded-lg shadow-xl overflow-x-auto border border-zinc-700">
@@ -66,18 +90,18 @@ export default function ActivityLogsView({ db }) {
                 <tr key={log.id} className="border-b border-zinc-700 last:border-b-0 hover:bg-zinc-700/30">
                   <td className="p-4 text-sm font-mono text-zinc-400 flex items-center gap-2">
                     <Clock size={14} />
-                    {log.timestamp ? new Date(log.timestamp.toDate()).toLocaleString("pt-BR") : "Data desconhecida"}
+                    {formatLogDate(log.timestamp)}
                   </td>
                   <td className="p-4 flex items-center gap-2">
                     <User size={14} className="text-blue-400" />
-                    <span className="font-semibold text-white">{log.adminEmail || "Desconhecido"}</span>
+                    <span className="font-semibold text-white">{log.adminEmail || log.source || "Sistema"}</span>
                   </td>
                   <td className="p-4">
                     <span className="px-2 py-1 bg-zinc-700 rounded-md text-xs font-bold text-violet-300 border border-zinc-600">
-                      {log.action}
+                      {log.action || log.level || "LOG"}
                     </span>
                   </td>
-                  <td className="p-4 text-sm">{log.details}</td>
+                  <td className="p-4 text-sm">{log.details || log.message}</td>
                 </tr>
               ))
             )}

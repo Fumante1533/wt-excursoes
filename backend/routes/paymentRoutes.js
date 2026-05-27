@@ -29,6 +29,7 @@ if (paymentProvider !== 'stripe') {
 
 router.post('/confirm', optionalAuth, confirmHandler);
 router.post('/tap_result', verifyFirebaseToken, tapResultController.saveTapResult);
+router.get('/ticket/:code', paymentController.getTicketPublic);
 router.post('/validate-ticket', verifyFirebaseToken, paymentController.validateTicket);
 
 module.exports = router;

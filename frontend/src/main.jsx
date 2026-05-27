@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { registerSW } from 'virtual:pwa-register';
 import App from './App.jsx';
 import './index.css';
 
@@ -12,10 +13,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 )
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(err => {
-      console.log('SW registration failed: ', err);
-    });
-  });
-}
+let updateServiceWorker;
+updateServiceWorker = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    window.dispatchEvent(new CustomEvent('itacars:pwa-update', {
+      detail: { updateServiceWorker },
+    }));
+  },
+  onOfflineReady() {
+    window.dispatchEvent(new CustomEvent('itacars:pwa-ready'));
+  },
+});

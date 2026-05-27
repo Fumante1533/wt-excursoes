@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import { XCircle } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { signOut, onAuthStateChanged, getIdTokenResult } from "firebase/auth";
 import { 
   collection,
@@ -38,6 +39,7 @@ import PaginaPerfilPublico from "./pages/PaginaPerfilPublico";
 import PaginaConta from "./pages/PaginaConta";
 import PaginaRanking from "./pages/PaginaRanking";
 import PaginaParceiros from "./pages/PaginaParceiros";
+import PaginaIngresso from "./pages/PaginaIngresso";
 import PaginaLoginAdmin from "./admin/PaginaLoginAdmin";
 const PainelAdministrativo = React.lazy(() => import("./admin/PainelAdministrativo"));
 import { Spinner } from "./components/AppPrimitives";
@@ -66,7 +68,99 @@ try {
   console.warn("Falha ao inicializar Mercado Pago; site não deve travar:", err);
 }
 
+function routeToPage(location) {
+  const currentPath = (location.pathname || "/").replace(/\/$/, "") || "/";
+  const urlParams = new URLSearchParams(location.search || "");
+
+  if (currentPath === "/") return { page: "home", data: {} };
+  if (currentPath === "/admin") return { page: "adminDashboard", data: {} };
+  if (currentPath.startsWith("/eventos/")) {
+    const id = decodeURIComponent(currentPath.split("/").filter(Boolean)[1] || "");
+    return { page: "eventDetail", data: { eventId: isNaN(Number(id)) ? id : Number(id) } };
+  }
+  if (currentPath.startsWith("/blog/")) {
+    const slug = decodeURIComponent(currentPath.split("/").filter(Boolean)[1] || "");
+    return { page: "blogPost", data: { slug } };
+  }
+  if (currentPath.startsWith("/profile/") || currentPath.startsWith("/perfil/")) {
+    const userId = decodeURIComponent(currentPath.split("/").filter(Boolean)[1] || "");
+    return { page: "profile", data: { userId } };
+  }
+  if (currentPath.startsWith("/ticket/")) {
+    const ticketCode = decodeURIComponent(currentPath.split("/").filter(Boolean)[1] || "");
+    return { page: "ticket", data: { ticketCode, ticketToken: urlParams.get("s") || urlParams.get("token") || "" } };
+  }
+  if (currentPath.startsWith("/success")) {
+    return { page: "success", data: { status: "success", sessionId: urlParams.get("session_id") || "" } };
+  }
+  if (currentPath.startsWith("/error")) return { page: "error", data: { status: "error" } };
+
+  const staticRoutes = {
+    "/eventos": "eventos",
+    "/events": "events",
+    "/eventshub": "eventsHub",
+    "/events-hub": "eventsHub",
+    "/past-events": "pastEvents",
+    "/eventos-passados": "pastEvents",
+    "/about": "about",
+    "/quem-somos": "about",
+    "/terms": "terms",
+    "/termos": "terms",
+    "/privacy": "privacy",
+    "/privacidade": "privacy",
+    "/ranking": "ranking",
+    "/parceiros": "parceiros",
+    "/auth": "auth",
+    "/login": "auth",
+    "/tapresult": "tapResult",
+    "/tap-result": "tapResult",
+    "/pending": "pending",
+    "/faq": "faq",
+    "/blog": "blog",
+    "/account": "account",
+    "/perfil": "account",
+    "/checkout": "checkout",
+  };
+
+  return {
+    page: staticRoutes[currentPath.toLowerCase()] || "home",
+    data: { initialTab: urlParams.get("tab") || "" },
+  };
+}
+
+function pageToPath(newPage, data = {}) {
+  if (newPage === "home") return "/";
+  if (newPage === "adminLogin" || newPage === "adminDashboard") return "/admin";
+  if (newPage === "eventDetail") return `/eventos/${encodeURIComponent(data.eventId || "")}`;
+  if (newPage === "blogPost") return `/blog/${encodeURIComponent(data.slug || data.postId || "")}`;
+  if (newPage === "profile") return `/profile/${encodeURIComponent(data.userId || "")}`;
+  if (newPage === "ticket") {
+    const query = data.ticketToken ? `?s=${encodeURIComponent(data.ticketToken)}` : "";
+    return `/ticket/${encodeURIComponent(data.ticketCode || "")}${query}`;
+  }
+  if (newPage === "account" && data.initialTab) return `/account?tab=${encodeURIComponent(data.initialTab)}`;
+  const paths = {
+    eventsHub: "/eventsHub",
+    pastEvents: "/past-events",
+    tapResult: "/tap-result",
+  };
+  return paths[newPage] || `/${newPage}`;
+}
+
+function setMetaTag(selector, attr, value) {
+  let tag = document.head.querySelector(selector);
+  if (!tag) {
+    tag = document.createElement("meta");
+    const [, key, name] = selector.match(/meta\[(.+?)=["'](.+?)["']\]/) || [];
+    if (key && name) tag.setAttribute(key, name);
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute(attr, value);
+}
+
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [page, setPage] = useState("home");
   const [pageData, setPageData] = useState({});
   const [isAdminUi, setIsAdminUi] = useState(false);
@@ -80,6 +174,7 @@ export default function App() {
   const [faqs, setFaqs] = useState(initialFaqs);
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [updateServiceWorker, setUpdateServiceWorker] = useState(null);
 
   useEffect(() => {
     try {
@@ -219,88 +314,14 @@ export default function App() {
 
   useEffect(() => {
     try {
-      const currentPath = window.location.pathname || "/";
-      if (currentPath === "/" || currentPath === "") {
-        setPage("home");
-        return;
-      }
-      if (currentPath.startsWith("/eventos/")) {
-        const parts = currentPath.split("/").filter(Boolean);
-        const id = parts[1];
-        setPageData({ eventId: isNaN(Number(id)) ? id : Number(id) });
-        setPage("eventDetail");
-        return;
-      }
-      if (currentPath.startsWith("/success")) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const sessionId = urlParams.get("session_id");
-        if (sessionId) {
-          setPageData({ status: "success", sessionId });
-        } else {
-          setPageData({ status: "success" });
-        }
-        setPage("success");
-        return;
-      }
-      if (currentPath.startsWith("/error")) {
-        setPageData({ status: "error" });
-        setPage("error");
-        return;
-      }
-
-      if (currentPath === "/eventos") {
-        setPage("eventos");
-        return;
-      }
-      const staticRoutes = {
-        "/events": "events",
-        "/eventsHub": "eventsHub",
-        "/eventshub": "eventsHub",
-        "/events-hub": "eventsHub",
-        "/pastEvents": "pastEvents",
-        "/pastevents": "pastEvents",
-        "/past-events": "pastEvents",
-        "/eventos-passados": "pastEvents",
-        "/about": "about",
-        "/quem-somos": "about",
-        "/terms": "terms",
-        "/termos": "terms",
-        "/privacy": "privacy",
-        "/privacidade": "privacy",
-        "/ranking": "ranking",
-        "/parceiros": "parceiros",
-        "/auth": "auth",
-        "/login": "auth",
-        "/tapResult": "tapResult",
-        "/tap-result": "tapResult",
-        "/pending": "pending",
-        "/faq": "faq",
-      };
-      const normalizedPath = currentPath.replace(/\/$/, "");
-      const staticPage = staticRoutes[normalizedPath] || staticRoutes[normalizedPath.toLowerCase()];
-      if (staticPage) {
-        setPage(staticPage);
-        return;
-      }
-      if (currentPath.startsWith("/blog/")) {
-        const parts = currentPath.split("/").filter(Boolean);
-        const slug = parts[1];
-        setPageData({ slug });
-        setPage("blogPost");
-        return;
-      }
-      if (currentPath === "/blog") {
-        setPage("blog");
-        return;
-      }
-      if (currentPath === "/account" || currentPath === "/perfil") {
-        setPage("account");
-        return;
-      }
+      const nextRoute = routeToPage(location);
+      setPageData((prev) => ({ ...prev, ...nextRoute.data }));
+      setPage(nextRoute.page);
     } catch (err) {
-      console.warn("Erro ao determinar rota inicial:", err);
+      console.warn("Erro ao determinar rota atual:", err);
+      setPage("home");
     }
-  }, []);
+  }, [location.pathname, location.search]);
 
     useEffect(() => {
         if (!firebaseInitialized || !db) return;
@@ -341,6 +362,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const onUpdate = (event) => {
+      if (event.detail?.updateServiceWorker) {
+        setUpdateServiceWorker(() => event.detail.updateServiceWorker);
+      }
+    };
+    window.addEventListener("itacars:pwa-update", onUpdate);
+    return () => window.removeEventListener("itacars:pwa-update", onUpdate);
+  }, []);
+
+  useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
       localStorage.setItem("darkMode", "true");
@@ -349,6 +380,50 @@ export default function App() {
       localStorage.setItem("darkMode", "false");
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    const currentEvent = page === "eventDetail"
+      ? eventos.find((e) => String(e.id) === String(pageData.eventId))
+      : null;
+    const currentPost = page === "blogPost"
+      ? blogPosts.find((p) =>
+          (pageData.postId && String(p.id) === String(pageData.postId)) ||
+          (pageData.slug && (String(p.id) === String(pageData.slug) || p.slug === pageData.slug))
+        )
+      : null;
+    const titles = {
+      home: "Itajobi Cars Club - Eventos Automotivos",
+      eventsHub: "Eventos - Itajobi Cars Club",
+      eventos: "Eventos - Itajobi Cars Club",
+      events: "Eventos - Itajobi Cars Club",
+      pastEvents: "Eventos Passados - Itajobi Cars Club",
+      about: "Quem Somos - Itajobi Cars Club",
+      blog: "Blog - Itajobi Cars Club",
+      faq: "FAQ - Itajobi Cars Club",
+      ranking: "Hall da Fama - Itajobi Cars Club",
+      parceiros: "Parceiros - Itajobi Cars Club",
+      ticket: "Ingresso - Itajobi Cars Club",
+      account: "Minha Conta - Itajobi Cars Club",
+      adminDashboard: "Painel Admin - Itajobi Cars Club",
+    };
+    const title = currentEvent?.name
+      ? `${currentEvent.name} - Itajobi Cars Club`
+      : currentPost?.title
+      ? `${currentPost.title} - Itajobi Cars Club`
+      : titles[page] || "Itajobi Cars Club";
+    const description = currentEvent?.description
+      || currentPost?.summary
+      || "Eventos automotivos, encontros e comunidade do Itajobi Cars Club.";
+
+    document.title = title;
+    setMetaTag('meta[name="description"]', "content", description);
+    setMetaTag('meta[property="og:title"]', "content", title);
+    setMetaTag('meta[property="og:description"]', "content", description);
+    setMetaTag('meta[property="og:url"]', "content", window.location.href);
+    if (currentEvent?.image || currentPost?.imageUrl) {
+      setMetaTag('meta[property="og:image"]', "content", currentEvent?.image || currentPost?.imageUrl);
+    }
+  }, [page, pageData, eventos, blogPosts]);
 
   const handleNavigate = async (newPage, data = {}) => {
     if ((newPage === "adminLogin" || newPage === "adminDashboard") && auth) {
@@ -373,14 +448,7 @@ export default function App() {
       }
     }
 
-    let path = "/";
-    if (newPage === "adminLogin" || newPage === "adminDashboard") {
-      path = "/admin";
-    } else if (newPage === "eventDetail") {
-      path = `/eventos/${data.eventId}`;
-    } else if (newPage !== "home") {
-      path = `/${newPage}`;
-    }
+    const path = pageToPath(newPage, data);
 
     if ((newPage === "adminLogin" || newPage === "adminDashboard") && !authReady) {
       setPageData(data);
@@ -388,7 +456,7 @@ export default function App() {
       return;
     }
 
-    window.history.pushState({}, "", path);
+    navigate(path);
     window.scrollTo(0, 0);
     setPageData(data);
     setPage(newPage);
@@ -623,6 +691,14 @@ const deleteEvento = async (id) => {
         return <PaginaPerfilPublico userId={pageData.userId} onNavigate={handleNavigate} />;
       case "tapResult":
         return <PaginaResultadoTap onNavigate={handleNavigate} />;
+      case "ticket":
+        return (
+          <PaginaIngresso
+            ticketCode={pageData.ticketCode}
+            ticketToken={pageData.ticketToken}
+            onNavigate={handleNavigate}
+          />
+        );
       case "terms":
         return <PaginaTermos />;
       case "privacy":
@@ -690,6 +766,20 @@ const deleteEvento = async (id) => {
                     },
                 }}
             />
+      {updateServiceWorker && (
+        <div className="fixed left-4 right-4 bottom-4 z-[9999] mx-auto max-w-xl rounded-lg border border-yellow-500/40 bg-zinc-900 text-white shadow-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1">
+            <p className="font-bold">Nova versao disponivel</p>
+            <p className="text-sm text-zinc-300">Atualize para carregar as ultimas correcoes do site.</p>
+          </div>
+          <button
+            className="px-4 py-2 rounded-md bg-yellow-500 text-zinc-950 font-bold hover:bg-yellow-400"
+            onClick={() => updateServiceWorker(true)}
+          >
+            Atualizar
+          </button>
+        </div>
+      )}
       {isFullPageLayout && (
         <AppNavbar
           onNavigate={handleNavigate}

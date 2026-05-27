@@ -104,8 +104,9 @@ router.post('/link-guest-orders', verifyFirebaseToken, async (req, res) => {
 });
 
 const nodemailer = require('nodemailer');
-const sendTicketEmail = async (email, name, eventName, ticketCode) => {
+const sendTicketEmail = async (email, name, eventName, ticketCode, ticketPayload) => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
+  const ticketLink = String(ticketPayload || '').startsWith('http') ? ticketPayload : '';
   try {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -123,6 +124,7 @@ const sendTicketEmail = async (email, name, eventName, ticketCode) => {
             <p style="font-size: 18px; margin: 0;">Código do Ingresso:</p>
             <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">${ticketCode}</p>
           </div>
+          ${ticketLink ? `<p><a href="${ticketLink}" style="display: inline-block; background: #eab308; color: #111; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: bold;">Abrir ingresso com QR Code</a></p>` : ''}
           <p>Apresente este código na entrada do evento.</p>
           <p>Nos vemos lá!</p>
         </div>
@@ -172,7 +174,8 @@ router.post('/resend-ticket', verifyFirebaseToken, async (req, res) => {
       targetOrder.buyerEmail, 
       targetOrder.buyerName || 'Participante', 
       targetOrder.eventoName || 'Evento', 
-      targetOrder.ticket.code
+      targetOrder.ticket.code,
+      targetOrder.ticket.qrPayload
     );
 
     res.json({ message: 'Ingresso reenviado.' });
@@ -202,7 +205,8 @@ router.post('/resend-my-ticket', verifyFirebaseToken, async (req, res) => {
       email,
       order.buyerName || 'Participante',
       order.eventoName || 'Evento',
-      order.ticket.code
+      order.ticket.code,
+      order.ticket.qrPayload
     );
 
     res.json({ message: 'Ingresso reenviado com sucesso.' });

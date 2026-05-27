@@ -10,6 +10,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const importRoutes = require('./routes/import');
 const userRoutes = require('./routes/user');
 const { initCronJobs } = require('./jobs/cronJobs');
+const { logServerError } = require('./lib/errorLogger');
 
 const app = express();
 
@@ -83,6 +84,7 @@ if (fs.existsSync(frontendDist)) {
 
 app.use((err, req, res, next) => {
   console.error('[Erro Global]:', err.message || err);
+  logServerError('express_global', err, req).catch(() => {});
   res.status(500).json({ error: 'Ocorreu um erro interno no servidor.' });
 });
 

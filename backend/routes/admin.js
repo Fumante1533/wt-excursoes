@@ -8,19 +8,9 @@ const router = express.Router();
 const verifyFirebaseToken = require('../middleware/verifyFirebaseToken');
 const admin = require('../config/firebaseAdmin');
 const { buildTicketSalesUpdate, findEventRef } = require('../lib/firestoreInventory');
-const { isAdminRequest } = require('../utils/ticketUtils');
+const { createTicketFields, isAdminRequest } = require('../utils/ticketUtils');
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function generateTicketCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = 'ICC-';
-  for (let i = 0; i < 10; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-    if (i === 4) code += '-';
-  }
-  return code;
-}
 
 // ─── POST /api/admin/issue-ticket ───────────────────────────────────────────
 // Emite um ingresso manualmente para um comprador (venda feita fora da plataforma)
@@ -64,7 +54,7 @@ router.post('/issue-ticket', verifyFirebaseToken, async (req, res) => {
     // Encontra o lote pelo tipo
     // ID do pedido manual: prefixo MANUAL + timestamp + random
     const manualOrderId = `MANUAL-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
-    const ticketCode = generateTicketCode();
+    const ticket = createTicketFields();
 
     // Destino: usa targetUserId ou cria sob um bucket "guest_manual_<orderId>"
     const userId = targetUserId || `guest_manual_${manualOrderId}`;
@@ -92,12 +82,7 @@ router.post('/issue-ticket', verifyFirebaseToken, async (req, res) => {
       isManual: true,
       issuedBy: req.user.uid,
       paymentId: manualOrderId,
-      ticket: {
-        code: ticketCode,
-        validated: false,
-        validatedAt: null,
-        validatedBy: null,
-      },
+      ticket,
     };
 
     const userRef = db.collection('users').doc(userId);
@@ -131,7 +116,7 @@ router.post('/issue-ticket', verifyFirebaseToken, async (req, res) => {
       try {
         // Tenta usar o sendTicketEmail exportado; se não disponível, importa direto
         const { sendTicketEmail } = require('../controllers/paymentController');
-        await sendTicketEmail(buyerEmail, buyerName, eventoData.name, ticketCode);
+        await sendTicketEmail(buyerEmail, buyerName, eventoData.name, ticket.code, ticket.qrPayload);
       } catch (emailErr) {
         console.error('Erro ao enviar e-mail do ingresso manual:', emailErr.message);
         // Não falha a request por causa do e-mail
@@ -141,7 +126,8 @@ router.post('/issue-ticket', verifyFirebaseToken, async (req, res) => {
     return res.json({
       message: 'Ingresso emitido com sucesso!',
       orderId: manualOrderId,
-      ticketCode,
+      ticketCode: ticket.code,
+      ticketPayload: ticket.qrPayload,
       userId,
     });
   } catch (err) {

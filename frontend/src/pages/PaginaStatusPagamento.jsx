@@ -6,6 +6,7 @@ import { db } from "../firebaseConfig";
 import { QRCodeCanvas } from "qrcode.react";
 import html2canvas from "html2canvas";
 import { toast } from "react-hot-toast";
+import { getTicketQrValue } from "../utils/ticket";
 
 export default function PaginaStatusPagamento({ onNavigate, status, user }) {
   const isSuccess = status === "success";
@@ -171,7 +172,7 @@ export default function PaginaStatusPagamento({ onNavigate, status, user }) {
                     {lastOrder.ticket?.code && (
                       <div className="pt-4 border-t border-zinc-800/80 flex flex-col sm:flex-row items-center gap-4">
                         <div className="bg-white p-2 rounded-xl shrink-0">
-                          <QRCodeCanvas value={String(lastOrder.ticket.code)} size={110} includeMargin />
+                          <QRCodeCanvas value={getTicketQrValue(lastOrder.ticket)} size={110} includeMargin />
                         </div>
                         <div className="text-xs text-zinc-400 space-y-1">
                           <p className="font-semibold text-zinc-200">Acelere com a gente!</p>

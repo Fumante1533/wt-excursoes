@@ -20,6 +20,7 @@ import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrim
 import { CartaoEvento } from "../components/CartaoEvento";
 import CaixaDialogo from "../components/CaixaDialogo";
 import { ImageUploader } from "../components/ImageUploader";
+import { getTicketQrValue } from "../utils/ticket";
 
 function PerfilUsuario({ user, db: firestore }) {
   const [profile, setProfile] = useState(null);
@@ -486,7 +487,7 @@ function ComprasUsuario({ user, eventos, onNavigate, db: firestore }) {
                   </p>
                   <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <div className="bg-white p-2 rounded-md">
-                      <QRCodeCanvas value={String(order.ticket.code)} size={120} includeMargin />
+                      <QRCodeCanvas value={getTicketQrValue(order.ticket)} size={120} includeMargin />
                     </div>
                     <div className="text-sm text-zinc-600 dark:text-zinc-300">
                       <p>Mostre este QR Code na entrada do evento.</p>
@@ -514,6 +515,16 @@ function ComprasUsuario({ user, eventos, onNavigate, db: firestore }) {
                   size="sm"
                 >
                   <Download size={16} className="mr-2 inline" /> Baixar Ingresso
+                </Button>
+              )}
+              {order.ticket?.qrPayload?.startsWith("http") && (
+                <Button
+                  className="mt-2 w-full md:w-auto"
+                  onClick={() => window.open(order.ticket.qrPayload, "_blank", "noopener,noreferrer")}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Abrir QR seguro
                 </Button>
               )}
               {order.ticket?.code && (

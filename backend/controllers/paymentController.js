@@ -1,7 +1,14 @@
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 const admin = require('../config/firebaseAdmin');
-const { generateTicketCode, normalizeTicketCode, isAdminRequest } = require('../utils/ticketUtils');
+const {
+  createTicketFields,
+  isAdminRequest,
+  normalizeTicketCode,
+  parseTicketInput,
+  verifyTicketToken,
+} = require('../utils/ticketUtils');
 const { buildTicketSalesUpdate, findEventRef } = require('../lib/firestoreInventory');
+const { logServerError } = require('../lib/errorLogger');
 const {
   normalizeCouponCode,
   roundCurrency,
@@ -9,8 +16,9 @@ const {
 } = require('../lib/paymentHelpers');
 const nodemailer = require('nodemailer');
 
-const sendTicketEmail = exports.sendTicketEmail = async (email, name, eventName, ticketCode) => {
+const sendTicketEmail = exports.sendTicketEmail = async (email, name, eventName, ticketCode, ticketPayload) => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
+  const ticketLink = String(ticketPayload || '').startsWith('http') ? ticketPayload : '';
   try {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -29,6 +37,7 @@ const sendTicketEmail = exports.sendTicketEmail = async (email, name, eventName,
             <p style="font-size: 18px; margin: 0;">Código do Ingresso:</p>
             <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">${ticketCode}</p>
           </div>
+          ${ticketLink ? `<p><a href="${ticketLink}" style="display: inline-block; background: #eab308; color: #111; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: bold;">Abrir ingresso com QR Code</a></p>` : ''}
           <p>Apresente este código na entrada do evento.</p>
           <p>Nos vemos lá!</p>
         </div>
@@ -392,7 +401,7 @@ exports.receiveWebhook = async (req, res) => {
 
       const db = admin.firestore();
       const orderRef = db.collection('users').doc(userId).collection('orders').doc(String(orderData.id));
-      const ticketCodeMain = generateTicketCode();
+      const mainTicket = createTicketFields();
       const eventoNameStr = orderData.additional_info?.items?.[0]?.title?.split(' (')[0] || '';
       const couponCode = normalizeCouponCode(metadata && metadata.coupon_code);
       const couponDocId = metadata && metadata.coupon_doc_id;
@@ -401,7 +410,7 @@ exports.receiveWebhook = async (req, res) => {
       const totalTicketsBought = 1 + additionalPassengers.length;
       const extraTicketEmails = additionalPassengers.map((passenger, idx) => ({
         passenger,
-        code: generateTicketCode(),
+        ticket: createTicketFields(),
         ref: db.collection('users').doc(userId).collection('orders').doc(`${orderData.id}_${idx + 1}`),
       }));
       const locatedEvent = eventoId ? await findEventRef(db, eventoId) : null;
@@ -448,16 +457,11 @@ exports.receiveWebhook = async (req, res) => {
         buyerEmail: orderData.payer?.email || '',
         paymentId: orderData.id,
         carInfo,
-        ticket: {
-          code: ticketCodeMain,
-          validated: false,
-          validatedAt: null,
-          validatedBy: null,
-        },
+        ticket: mainTicket,
       });
 
       // Salva os ingressos adicionais, se houver
-        extraTicketEmails.forEach(({ passenger, code, ref }) => {
+        extraTicketEmails.forEach(({ passenger, ticket, ref }) => {
           transaction.set(ref, {
             eventoId: eventoId,
             eventoName: eventoNameStr,
@@ -477,12 +481,7 @@ exports.receiveWebhook = async (req, res) => {
               year: passenger.carYear || '',
               color: passenger.carColor || ''
             },
-            ticket: {
-              code,
-              validated: false,
-              validatedAt: null,
-              validatedBy: null,
-            },
+            ticket,
           });
         });
 
@@ -493,12 +492,12 @@ exports.receiveWebhook = async (req, res) => {
 
       // Envia os emails de forma assíncrona
       if (orderData.payer?.email) {
-        sendTicketEmail(orderData.payer.email, orderData.payer.first_name || 'Comprador', eventoNameStr, ticketCodeMain);
+        sendTicketEmail(orderData.payer.email, orderData.payer.first_name || 'Comprador', eventoNameStr, mainTicket.code, mainTicket.qrPayload);
       }
       if (Array.isArray(extraTicketEmails)) {
-        extraTicketEmails.forEach(({ passenger, code }) => {
+        extraTicketEmails.forEach(({ passenger, ticket }) => {
           if (passenger.email) {
-            sendTicketEmail(passenger.email, passenger.fullName || 'Acompanhante', eventoNameStr, code);
+            sendTicketEmail(passenger.email, passenger.fullName || 'Acompanhante', eventoNameStr, ticket.code, ticket.qrPayload);
           }
         });
       }
@@ -584,13 +583,59 @@ async function findOrderDocByTicketCode(db, normalizedTicketCode, eventoId) {
   return null;
 }
 
+exports.getTicketPublic = async (req, res) => {
+  try {
+    const parsedTicket = parseTicketInput(
+      `${req.protocol}://${req.get('host')}/ticket/${encodeURIComponent(req.params.code || '')}?s=${encodeURIComponent(req.query.s || req.query.token || '')}`
+    );
+    if (!parsedTicket.code) {
+      return res.status(400).json({ error: 'Codigo do ingresso obrigatorio.' });
+    }
+
+    const db = admin.firestore();
+    const docSnap = await findOrderDocByTicketCode(db, parsedTicket.code);
+    if (!docSnap) {
+      return res.status(404).json({ error: 'Ingresso nao encontrado.' });
+    }
+
+    const data = docSnap.data() || {};
+    const ticket = data.ticket || {};
+    if (ticket.token && !verifyTicketToken(parsedTicket.code, parsedTicket.token, ticket.token)) {
+      return res.status(403).json({ error: 'Link do ingresso invalido.' });
+    }
+
+    return res.json({
+      orderId: docSnap.id,
+      eventoId: data.eventoId || '',
+      eventoName: data.eventoName || '',
+      eventoDate: data.eventoDate || null,
+      ticketType: data.ticketType || '',
+      buyerName: data.buyerName || data.buyerInfo?.fullName || '',
+      buyerEmail: data.buyerEmail || '',
+      status: data.status || '',
+      carInfo: data.carInfo || data.buyerInfo || null,
+      ticket: {
+        code: ticket.code || parsedTicket.code,
+        qrPayload: ticket.qrPayload || '',
+        validated: !!ticket.validated,
+        validatedAt: ticket.validatedAt || null,
+        validationHistory: Array.isArray(ticket.validationHistory) ? ticket.validationHistory : [],
+      },
+    });
+  } catch (err) {
+    console.error('Erro ao consultar ingresso publico:', err.message || err);
+    return res.status(500).json({ error: 'Erro ao consultar ingresso.' });
+  }
+};
+
 exports.validateTicket = async (req, res) => {
   try {
     if (!isAdminRequest(req.user)) {
       return res.status(403).json({ error: `Acesso restrito a administradores. (Sua conta: ${req.user ? req.user.email : 'Nenhuma'})` });
     }
     const { ticketCode, eventoId } = req.body || {};
-    const normalized = normalizeTicketCode(ticketCode);
+    const parsedTicket = parseTicketInput(ticketCode);
+    const normalized = parsedTicket.code;
     if (!normalized) {
       return res.status(400).json({ error: 'ticketCode é obrigatório.' });
     }
@@ -602,8 +647,22 @@ exports.validateTicket = async (req, res) => {
         error: eventoId ? 'Ingresso não encontrado para este evento.' : 'Ingresso não encontrado.',
       });
     }
+    const initialData = docSnap.data() || {};
+    const storedTicket = initialData.ticket || {};
+    if (storedTicket.token && !verifyTicketToken(normalized, parsedTicket.token, storedTicket.token)) {
+      return res.status(403).json({
+        error: parsedTicket.token
+          ? 'QR Code do ingresso invalido.'
+          : 'Este ingresso usa QR Code seguro. Escaneie o QR ou cole o link completo do ingresso.',
+      });
+    }
     let validatedData;
     let alreadyValidated = false;
+    const validationEntry = {
+      at: new Date().toISOString(),
+      by: req.user.uid,
+      byEmail: req.user.email || '',
+    };
 
     await db.runTransaction(async (transaction) => {
       const freshSnap = await transaction.get(docSnap.ref);
@@ -628,6 +687,10 @@ exports.validateTicket = async (req, res) => {
             validated: true,
             validatedAt: admin.firestore.FieldValue.serverTimestamp(),
             validatedBy: req.user.uid,
+            validationHistory: [
+              ...((data.ticket && Array.isArray(data.ticket.validationHistory)) ? data.ticket.validationHistory : []),
+              validationEntry,
+            ],
           },
         },
         { merge: true }
@@ -646,16 +709,34 @@ exports.validateTicket = async (req, res) => {
       });
     }
 
+    db.collection('activity_logs').add({
+      adminEmail: req.user.email || '',
+      action: 'VALIDAR_INGRESSO',
+      details: `Validou ingresso ${normalized} (${data.eventoName || 'Evento'})`,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      orderId: docSnap.id,
+    }).catch((logErr) => console.warn('Falha ao registrar log de validacao:', logErr.message || logErr));
+
     return res.json({
       ok: true,
       orderId: docSnap.id,
       eventoName: data.eventoName || '',
       buyerName: data.buyerName || data.buyerInfo?.fullName || '',
       ticketCode: normalized,
+      ticket: {
+        ...(data.ticket || {}),
+        code: normalized,
+        validated: true,
+        validationHistory: [
+          ...((data.ticket && Array.isArray(data.ticket.validationHistory)) ? data.ticket.validationHistory : []),
+          validationEntry,
+        ],
+      },
       carInfo: data.carInfo || data.buyerInfo || null,
     });
   } catch (err) {
     console.error('Erro ao validar ingresso:', err.message || err);
+    logServerError('validate_ticket', err, req).catch(() => {});
     return res.status(500).json({ error: 'Erro ao validar ingresso.' });
   }
 };

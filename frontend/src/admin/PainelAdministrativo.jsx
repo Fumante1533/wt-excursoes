@@ -18,6 +18,8 @@ import {
   Download,
   Mail,
   UserCheck,
+  Eye,
+  Copy,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { collection, collectionGroup, getDocs } from "firebase/firestore";
@@ -32,6 +34,7 @@ import EmissaoIngressoManual from "./EmissaoIngressoManual";
 import { Button } from "../components/AppPrimitives";
 import CaixaDialogo from "../components/CaixaDialogo";
 import FormularioEvento from "./FormularioEvento";
+import { formatValidationDate, getTicketQrValue } from "../utils/ticket";
 
 function TabelaEventoAdmin({ eventos, onEdit, onDelete }) {
   return (
@@ -90,8 +93,13 @@ function ListaPedidosAdmin({ orders }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEvent, setSelectedEvent] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedPresence, setSelectedPresence] = useState("");
+  const [selectedPayment, setSelectedPayment] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const uniqueEvents = Array.from(new Set(orders.map(o => o.eventoName).filter(Boolean)));
+  const getPaymentLabel = (order) => order.paymentMethod || (order.isManual ? "manual" : order.preferenceId ? "mercadopago" : "online");
+  const uniquePayments = Array.from(new Set(orders.map(getPaymentLabel).filter(Boolean)));
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
@@ -99,13 +107,24 @@ function ListaPedidosAdmin({ orders }) {
       (order.buyerEmail || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.carInfo?.plate || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.carInfo?.model || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.ticket?.code || "").toLowerCase().includes(searchTerm.toLowerCase());
+      (order.ticket?.code || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(order.paymentId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getPaymentLabel(order).toLowerCase().includes(searchTerm.toLowerCase());
       
     const matchesEvent = selectedEvent === "" || order.eventoName === selectedEvent;
     const matchesStatus = selectedStatus === "" || order.status === selectedStatus;
+    const matchesPresence =
+      selectedPresence === "" ||
+      (selectedPresence === "validated" && order.ticket?.validated) ||
+      (selectedPresence === "pending" && !order.ticket?.validated);
+    const matchesPayment = selectedPayment === "" || getPaymentLabel(order) === selectedPayment;
     
-    return matchesSearch && matchesEvent && matchesStatus;
+    return matchesSearch && matchesEvent && matchesStatus && matchesPresence && matchesPayment;
   });
+  const paidCount = filteredOrders.filter((order) => order.status === "Pago").length;
+  const validatedCount = filteredOrders.filter((order) => order.ticket?.validated).length;
+  const manualCount = filteredOrders.filter((order) => order.isManual || getPaymentLabel(order) === "manual").length;
 
   const exportToCSV = () => {
     const headers = ["Nome", "Email", "Evento", "Tipo de Ingresso", "Status", "Preço", "Placa do Carro", "Modelo do Carro", "Código Ingresso"];
@@ -222,7 +241,12 @@ function ListaPedidosAdmin({ orders }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h2 className="text-3xl font-bold text-white">Lista de Compradores</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-white">Lista de Compradores</h2>
+          <p className="text-sm text-zinc-400 mt-1">
+            {filteredOrders.length} ingressos filtrados, {paidCount} pagos, {validatedCount} validados, {manualCount} manuais.
+          </p>
+        </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <button 
             onClick={printList}
@@ -240,7 +264,7 @@ function ListaPedidosAdmin({ orders }) {
       </div>
 
       {/* Filtros e Busca */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
         <input
           type="text"
           placeholder="Buscar por nome, e-mail, placa, modelo ou código..."
@@ -267,10 +291,29 @@ function ListaPedidosAdmin({ orders }) {
           <option value="Pago">Pago</option>
           <option value="Pendente">Pendente</option>
         </select>
+        <select
+          value={selectedPresence}
+          onChange={(e) => setSelectedPresence(e.target.value)}
+          className="bg-zinc-700 text-white border border-zinc-650 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+        >
+          <option value="">Portaria</option>
+          <option value="validated">Validados</option>
+          <option value="pending">Nao validados</option>
+        </select>
+        <select
+          value={selectedPayment}
+          onChange={(e) => setSelectedPayment(e.target.value)}
+          className="bg-zinc-700 text-white border border-zinc-650 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm"
+        >
+          <option value="">Pagamento</option>
+          {uniquePayments.map((method) => (
+            <option key={method} value={method}>{method}</option>
+          ))}
+        </select>
       </div>
 
       <div className="bg-zinc-800 rounded-lg shadow-xl overflow-x-auto">
-        <table className="w-full text-left text-zinc-300 min-w-[650px]">
+        <table className="w-full text-left text-zinc-300 min-w-[860px]">
           <thead className="bg-zinc-900/50">
             <tr className="border-b border-zinc-700">
               <th className="p-4">Comprador</th>
@@ -278,6 +321,7 @@ function ListaPedidosAdmin({ orders }) {
               <th className="p-4">Ingresso</th>
               <th className="p-4">Veículo</th>
               <th className="p-4">Status</th>
+              <th className="p-4">Portaria</th>
               <th className="p-4">Ações</th>
             </tr>
           </thead>
@@ -308,8 +352,43 @@ function ListaPedidosAdmin({ orders }) {
                   >
                     {order.status}
                   </span>
+                  <p className="text-xs text-zinc-500 mt-1">{getPaymentLabel(order)}</p>
                 </td>
                 <td className="p-4">
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                      order.ticket?.validated ? "bg-emerald-500/20 text-emerald-300" : "bg-zinc-600/40 text-zinc-300"
+                    }`}
+                  >
+                    {order.ticket?.validated ? "Validado" : "Pendente"}
+                  </span>
+                  {order.ticket?.validatedAt && (
+                    <p className="text-xs text-zinc-500 mt-1">{formatValidationDate(order.ticket.validatedAt)}</p>
+                  )}
+                </td>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      title="Detalhes"
+                      onClick={() => setSelectedOrder(order)}
+                      className="p-2 bg-zinc-700 text-zinc-200 hover:bg-zinc-600 rounded transition-colors"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      title="Copiar QR seguro"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(getTicketQrValue(order.ticket) || order.ticket?.code || "");
+                          toast.success("Codigo copiado.");
+                        } catch {
+                          toast.error("Nao foi possivel copiar.");
+                        }
+                      }}
+                      className="p-2 bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 rounded transition-colors"
+                    >
+                      <Copy size={16} />
+                    </button>
                   <button
                     title="Reenviar E-mail"
                     onClick={() => handleResendEmail(order.id)}
@@ -317,12 +396,49 @@ function ListaPedidosAdmin({ orders }) {
                   >
                     <Mail size={16} />
                   </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <CaixaDialogo isOpen={!!selectedOrder} onClose={() => setSelectedOrder(null)} title="Detalhes do ingresso">
+        {selectedOrder && (
+          <div className="space-y-4 text-zinc-200">
+            <div className="grid md:grid-cols-2 gap-3 text-sm">
+              <p><span className="text-zinc-500">Comprador:</span> {selectedOrder.buyerName || "-"}</p>
+              <p><span className="text-zinc-500">Email:</span> {selectedOrder.buyerEmail || "-"}</p>
+              <p><span className="text-zinc-500">Evento:</span> {selectedOrder.eventoName || "-"}</p>
+              <p><span className="text-zinc-500">Ingresso:</span> {selectedOrder.ticketType || "-"}</p>
+              <p><span className="text-zinc-500">Pedido:</span> <span className="font-mono">{selectedOrder.id}</span></p>
+              <p><span className="text-zinc-500">Pagamento:</span> {getPaymentLabel(selectedOrder)}</p>
+              <p><span className="text-zinc-500">Codigo:</span> <span className="font-mono">{selectedOrder.ticket?.code || "-"}</span></p>
+              <p><span className="text-zinc-500">Veiculo:</span> {selectedOrder.carInfo?.plate ? `${selectedOrder.carInfo.model || ""} ${selectedOrder.carInfo.plate}` : "-"}</p>
+            </div>
+            {getTicketQrValue(selectedOrder.ticket).startsWith("http") && (
+              <Button type="button" variant="secondary" onClick={() => window.open(getTicketQrValue(selectedOrder.ticket), "_blank", "noopener,noreferrer")}>
+                Abrir pagina do ingresso
+              </Button>
+            )}
+            <div>
+              <h3 className="font-bold text-white mb-2">Historico de validacao</h3>
+              {selectedOrder.ticket?.validationHistory?.length ? (
+                <div className="space-y-2">
+                  {selectedOrder.ticket.validationHistory.map((item, index) => (
+                    <div key={`${item.at}-${index}`} className="p-3 rounded-md bg-zinc-800 border border-zinc-700 text-sm">
+                      <p>{formatValidationDate(item.at) || item.at}</p>
+                      <p className="text-zinc-500">{item.byEmail || item.by || "Admin"}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500">Ainda nao ha validacao registrada.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </CaixaDialogo>
     </motion.div>
   );
 }
@@ -364,7 +480,7 @@ function ValidadorIngressos({ eventos }) {
   const [scanError, setScanError] = useState("");
 
   const doValidate = async (codeParam) => {
-    const code = String(codeParam !== undefined ? codeParam : ticketCode).trim().toUpperCase();
+    const code = String(codeParam !== undefined ? codeParam : ticketCode).trim();
     if (!code) { toast.error("Informe o código do ingresso."); return; }
     setIsValidating(true);
     setResult(null);
@@ -415,7 +531,7 @@ function ValidadorIngressos({ eventos }) {
           "ticket-video",
           (scanResult) => {
             if (stopped || !scanResult) return;
-            const text = String(scanResult.getText() || "").trim().toUpperCase();
+            const text = String(scanResult.getText() || "").trim();
             if (text) {
               stopped = true;
               setIsScanning(false);
@@ -456,7 +572,7 @@ function ValidadorIngressos({ eventos }) {
         <div className="text-zinc-400 text-xs text-center">— ou informe o código manualmente —</div>
         <input
           value={ticketCode}
-          onChange={(e) => setTicketCode(e.target.value.toUpperCase())}
+          onChange={(e) => setTicketCode(e.target.value)}
           placeholder="Código do ingresso (ex: ITC-...)"
           className="w-full bg-zinc-700 text-white p-3 rounded-lg border border-zinc-600 font-mono"
         />

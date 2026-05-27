@@ -1,6 +1,6 @@
 require('dotenv').config();
 const admin = require('../config/firebaseAdmin');
-const { generateTicketCode } = require('../utils/ticketUtils');
+const { createTicketFields } = require('../utils/ticketUtils');
 const { buildTicketSalesUpdate, findEventRef } = require('../lib/firestoreInventory');
 
 let stripe;
@@ -179,7 +179,7 @@ exports.handleWebhook = async (req, res) => {
 
         const orderRef = db.collection('users').doc(userId).collection('orders').doc(session.id);
         const locatedEvents = await Promise.all(cart.map((item) => findEventRef(db, item.eventoId)));
-        const ticketCode = generateTicketCode();
+        const ticket = createTicketFields();
         let processed = false;
 
         await db.runTransaction(async (transaction) => {
@@ -222,12 +222,7 @@ exports.handleWebhook = async (req, res) => {
             status: 'Pago',
             paymentMethod: session.payment_method_types && session.payment_method_types[0],
             purchaseDate: admin.firestore.FieldValue.serverTimestamp(),
-            ticket: {
-              code: ticketCode,
-              validated: false,
-              validatedAt: null,
-              validatedBy: null,
-            },
+            ticket,
           });
 
           processed = true;
