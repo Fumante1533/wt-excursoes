@@ -223,22 +223,29 @@ export default function PaginaInicial({ onNavigate, eventos, user, db }) {
                     )}
                     {activity.type === "order" && (
                       <p>
-                        <span className="font-bold">{activity.buyerInfo.fullName}</span> se inscreveu no evento{" "}
+                        <span className="font-bold">
+                          {activity.buyerInfo?.fullName || activity.buyerName || "Participante"}
+                        </span> se inscreveu no evento{" "}
                         <a
                           href="#"
                           onClick={(e) => {
                             e.preventDefault();
-                            onNavigate("eventDetail", { eventId: activity.items[0].eventoId });
+                            onNavigate("eventDetail", {
+                              eventId: activity.items?.[0]?.eventoId || activity.eventoId,
+                            });
                           }}
                           className="font-semibold text-yellow-400 hover:underline"
                         >
-                          {activity.items[0].eventoName}
+                          {activity.items?.[0]?.eventoName || activity.eventoName || "Evento"}
                         </a>
                       </p>
                     )}
                     <p className="text-xs text-zinc-400 mt-1">
                       {new Date(
-                        (activity.createdAt || activity.purchaseDate)?.toDate()
+                        (activity.createdAt || activity.purchaseDate)?.toDate?.() ||
+                          activity.createdAt ||
+                          activity.purchaseDate ||
+                          Date.now()
                       ).toLocaleString("pt-BR")}
                     </p>
                   </div>

@@ -18,6 +18,11 @@ export default defineConfig([
   // Ajustes para este projeto (evitar "ruído" de regras que não são usadas)
   {
     files: ["**/*.{js,mjs,cjs,jsx}"],
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
     rules: {
       "react/prop-types": "off",
       // React 18+ com texto normal costuma gerar muitos falsos positivos
