@@ -252,6 +252,36 @@ export default function App() {
         setPage("eventos");
         return;
       }
+      const staticRoutes = {
+        "/events": "events",
+        "/eventsHub": "eventsHub",
+        "/eventshub": "eventsHub",
+        "/events-hub": "eventsHub",
+        "/pastEvents": "pastEvents",
+        "/pastevents": "pastEvents",
+        "/past-events": "pastEvents",
+        "/eventos-passados": "pastEvents",
+        "/about": "about",
+        "/quem-somos": "about",
+        "/terms": "terms",
+        "/termos": "terms",
+        "/privacy": "privacy",
+        "/privacidade": "privacy",
+        "/ranking": "ranking",
+        "/parceiros": "parceiros",
+        "/auth": "auth",
+        "/login": "auth",
+        "/tapResult": "tapResult",
+        "/tap-result": "tapResult",
+        "/pending": "pending",
+        "/faq": "faq",
+      };
+      const normalizedPath = currentPath.replace(/\/$/, "");
+      const staticPage = staticRoutes[normalizedPath] || staticRoutes[normalizedPath.toLowerCase()];
+      if (staticPage) {
+        setPage(staticPage);
+        return;
+      }
       if (currentPath.startsWith("/blog/")) {
         const parts = currentPath.split("/").filter(Boolean);
         const slug = parts[1];
@@ -261,10 +291,6 @@ export default function App() {
       }
       if (currentPath === "/blog") {
         setPage("blog");
-        return;
-      }
-      if (currentPath === "/faq") {
-        setPage("faq");
         return;
       }
       if (currentPath === "/account" || currentPath === "/perfil") {
