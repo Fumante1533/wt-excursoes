@@ -208,6 +208,7 @@ exports.handleWebhook = async (req, res) => {
             buyerInfo,
             buyerName: buyerInfo?.fullName || '',
             buyerEmail: buyerInfo?.email || session.customer_details?.email || '',
+            buyerEmailLower: String(buyerInfo?.email || session.customer_details?.email || '').trim().toLowerCase(),
             carInfo: carInfo || {},
             items: cart.map((item, index) => ({
               ...item,

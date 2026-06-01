@@ -1,9 +1,24 @@
 import React, { useState, useRef } from "react";
 import { Upload } from "lucide-react";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { app } from "../firebaseConfig";
+import { app, auth } from "../firebaseConfig";
 import { Input, Button, Spinner } from "./AppPrimitives";
 import { toast } from "react-hot-toast";
+
+const getUploadErrorMessage = (error) => {
+  if (error?.code === "storage/unauthorized") {
+    return "Sem permissao para enviar imagem. Entre novamente e tente de novo.";
+  }
+  if (error?.code === "storage/canceled") {
+    return "Upload cancelado.";
+  }
+  if (error?.code === "storage/retry-limit-exceeded") {
+    return "Conexao instavel. Tente enviar novamente.";
+  }
+  if (!app) {
+    return "Firebase Storage nao esta configurado neste ambiente.";
+  }
+  return "Falha ao fazer upload da imagem.";
+};
 
 export const ImageUploader = ({ 
   value, 
@@ -81,19 +96,33 @@ export const ImageUploader = ({
     const loadingToast = toast.loading("Otimizando e enviando imagem...");
 
     try {
+      if (!app) {
+        throw new Error("Firebase app ausente.");
+      }
+      if (!auth?.currentUser) {
+        const error = new Error("Usuario nao autenticado.");
+        error.code = "storage/unauthorized";
+        throw error;
+      }
+
+      await auth.currentUser.getIdToken(true);
+      const { getStorage, ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
       const storage = getStorage(app);
       const optimizedFile = await compressImageToWebP(file);
       const filename = `${uploadPath}/${Date.now()}_${optimizedFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
       const storageRef = ref(storage, filename);
       
-      const snapshot = await uploadBytes(storageRef, optimizedFile);
+      const snapshot = await uploadBytes(storageRef, optimizedFile, {
+        contentType: optimizedFile.type || "image/webp",
+        cacheControl: "public,max-age=31536000,immutable",
+      });
       const downloadURL = await getDownloadURL(snapshot.ref);
       
       onChange(downloadURL);
       toast.success("Imagem enviada com sucesso!", { id: loadingToast });
     } catch (error) {
       console.error("Erro ao fazer upload da imagem:", error);
-      toast.error("Falha ao fazer upload da imagem.", { id: loadingToast });
+      toast.error(getUploadErrorMessage(error), { id: loadingToast });
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

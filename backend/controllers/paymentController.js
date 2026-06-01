@@ -300,6 +300,7 @@ exports.createPreference = async (req, res) => {
           createdAt: new Date().toISOString(),
           buyerName: payerEmail.split('@')[0],
           buyerEmail: payerEmail,
+          buyerEmailLower: String(payerEmail || '').trim().toLowerCase(),
           abandonedCartSent: false,
           paymentMethod: 'pix',
           paymentId: response.id,
@@ -333,6 +334,7 @@ exports.createPreference = async (req, res) => {
         createdAt: new Date().toISOString(),
         buyerName: payerEmail.split('@')[0],
         buyerEmail: payerEmail,
+        buyerEmailLower: String(payerEmail || '').trim().toLowerCase(),
         abandonedCartSent: false,
         preferenceId: response.id
       });
@@ -455,6 +457,7 @@ exports.receiveWebhook = async (req, res) => {
         purchaseDate: new Date().toISOString(),
         buyerName: orderData.payer?.first_name || '',
         buyerEmail: orderData.payer?.email || '',
+        buyerEmailLower: String(orderData.payer?.email || '').trim().toLowerCase(),
         paymentId: orderData.id,
         carInfo,
         ticket: mainTicket,
@@ -474,6 +477,7 @@ exports.receiveWebhook = async (req, res) => {
             purchaseDate: new Date().toISOString(),
             buyerName: passenger.fullName || 'Acompanhante',
             buyerEmail: passenger.email || '',
+            buyerEmailLower: String(passenger.email || '').trim().toLowerCase(),
             paymentId: orderData.id,
             carInfo: {
               plate: passenger.carPlate || '',

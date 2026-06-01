@@ -42,19 +42,40 @@ router.post('/avatar', verifyFirebaseToken, upload.single('avatar'), (req, res) 
 
 const admin = require('../config/firebaseAdmin');
 
-async function getAllOrderDocs(db) {
+async function getOrderDocsByBuyerEmail(db, email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const emailVariants = Array.from(new Set([
+    String(email || '').trim(),
+    normalizedEmail,
+  ].filter(Boolean)));
+
   try {
-    const snap = await db.collectionGroup('orders').get();
-    return snap.docs;
+    const queries = [
+      ...emailVariants.map((emailValue) =>
+        db.collectionGroup('orders').where('buyerEmail', '==', emailValue).get()
+      ),
+      db.collectionGroup('orders').where('buyerEmailLower', '==', normalizedEmail).get(),
+    ];
+    const snaps = await Promise.all(queries);
+    const docsByPath = new Map();
+    snaps.forEach((snap) => {
+      snap.docs.forEach((docSnap) => docsByPath.set(docSnap.ref.path, docSnap));
+    });
+    return Array.from(docsByPath.values());
   } catch (err) {
-    console.warn('linkGuestOrders: collectionGroup order scan failed; falling back to user order scan.', err.message || err);
+    console.warn('linkGuestOrders: filtered collectionGroup query failed; falling back to user order scan.', err.message || err);
   }
 
   const usersSnap = await db.collection('users').get();
   const docs = [];
   for (const userDoc of usersSnap.docs) {
     const ordersSnap = await userDoc.ref.collection('orders').get();
-    docs.push(...ordersSnap.docs);
+    ordersSnap.docs.forEach((docSnap) => {
+      const data = docSnap.data() || {};
+      if (String(data.buyerEmail || '').trim().toLowerCase() === normalizedEmail) {
+        docs.push(docSnap);
+      }
+    });
   }
   return docs;
 }
@@ -67,12 +88,7 @@ router.post('/link-guest-orders', verifyFirebaseToken, async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Usuário sem e-mail.' });
 
     const db = admin.firestore();
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const orderDocs = await getAllOrderDocs(db);
-    const matchingOrders = orderDocs.filter((docSnap) => {
-      const data = docSnap.data() || {};
-      return String(data.buyerEmail || '').trim().toLowerCase() === normalizedEmail;
-    });
+    const matchingOrders = await getOrderDocsByBuyerEmail(db, email);
     
     if (matchingOrders.length === 0) {
       return res.json({ message: 'Nenhum pedido de visitante encontrado.' });

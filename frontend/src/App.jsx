@@ -56,6 +56,75 @@ const PainelAdministrativo = React.lazy(() => import("./admin/PainelAdministrati
 const ADMIN_EMAIL    = (import.meta.env.VITE_ADMIN_EMAIL   || "").trim().toLowerCase();
 const ADMIN_EMAIL_2  = (import.meta.env.VITE_ADMIN_EMAIL_2 || "").trim().toLowerCase();
 const ADMIN_UID      = (import.meta.env.VITE_ADMIN_UID     || "").trim();
+const AUTH_BACKGROUND_TIMEOUT_MS = 6000;
+
+const isConfiguredAdminUser = (currentUser) => {
+  const currentEmail = (currentUser?.email || "").trim().toLowerCase();
+  return (
+    !!(ADMIN_EMAIL && currentEmail === ADMIN_EMAIL) ||
+    !!(ADMIN_EMAIL_2 && currentEmail === ADMIN_EMAIL_2) ||
+    !!(ADMIN_UID && currentUser?.uid === ADMIN_UID)
+  );
+};
+
+const resolveAdminStatus = async (currentUser, forceRefresh = false) => {
+  if (!currentUser) return false;
+
+  const emailAdmin = isConfiguredAdminUser(currentUser);
+  try {
+    const idResult = await getIdTokenResult(currentUser, forceRefresh);
+    return emailAdmin || !!idResult?.claims?.admin;
+  } catch (err) {
+    console.warn("Falha ao ler permissao de admin, usando fallback local:", err);
+    return emailAdmin;
+  }
+};
+
+const getSessionFlag = (key) => {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const setSessionFlag = (key) => {
+  try {
+    window.sessionStorage.setItem(key, "1");
+  } catch {
+    // Ignora navegadores que bloqueiam sessionStorage.
+  }
+};
+
+const linkGuestOrders = async (currentUser) => {
+  if (!currentUser) return;
+
+  const flagKey = `itajobi:guest-orders-linked:${currentUser.uid}`;
+  if (getSessionFlag(flagKey)) return;
+
+  const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), AUTH_BACKGROUND_TIMEOUT_MS);
+
+  try {
+    const token = await currentUser.getIdToken();
+    const response = await fetch(`${backendUrl}/api/user/link-guest-orders`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
+
+    if (response.ok) {
+      setSessionFlag(flagKey);
+    }
+  } catch (err) {
+    if (err?.name !== "AbortError") {
+      console.warn("Nao foi possivel vincular pedidos de visitante em segundo plano:", err);
+    }
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
 
 function routeToPage(location) {
   const currentPath = (location.pathname || "/").replace(/\/$/, "") || "/";
@@ -207,12 +276,21 @@ export default function App() {
           const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
         console.debug("onAuthStateChanged -> user:", currentUser);
             setUser(currentUser);
+            const configuredAdmin = isConfiguredAdminUser(currentUser);
+            if (currentUser && configuredAdmin) {
+              setIsAdminUi(true);
+            }
+            if (!currentUser || !(window.location.pathname || "").includes("/admin") || configuredAdmin) {
+              setAuthReady(true);
+            }
               (async () => {
-                setAuthReady(false);
+                if ((window.location.pathname || "").includes("/admin") && currentUser && !configuredAdmin) {
+                  setAuthReady(false);
+                }
                 try {
                   if (currentUser) {
                     try {
-                      await currentUser.getIdToken(true);
+                      await currentUser.getIdToken();
                     } catch (err) {
                 console.warn("Falha ao forçar refresh do ID token:", err);
                     }
@@ -247,12 +325,7 @@ export default function App() {
                       }
                       
                       // Chama a API de vinculação de convidados
-                      const token = await currentUser.getIdToken();
-                      const backendUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
-                      await fetch(`${backendUrl}/api/user/link-guest-orders`, {
-                        method: "POST",
-                        headers: { "Authorization": `Bearer ${token}` }
-                      });
+                      await linkGuestOrders(currentUser);
                     } catch (err) {
                       console.warn("Erro ao lidar com dados de usuário:", err);
                     }
@@ -280,7 +353,7 @@ export default function App() {
         }
         setAuthReady(false);
         try {
-          await currentUser.getIdToken(true);
+          setIsAdminUi(await resolveAdminStatus(currentUser, true));
           const idResult = await getIdTokenResult(currentUser);
           const isAdminClaim = !!(idResult && idResult.claims && idResult.claims.admin);
           const currentEmail = currentUser && currentUser.email ? currentUser.email.trim().toLowerCase() : "";

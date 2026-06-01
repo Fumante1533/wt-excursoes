@@ -514,8 +514,8 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                                 )}
                               </div>
                               
-                              <div className="p-5 flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div className="flex-grow text-center md:text-left">
+                              <div className="p-5 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+                                <div className="min-w-0 flex-1 text-center md:text-left">
                                   <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
                                     <p className="font-bold text-xl text-zinc-900 dark:text-white">
                                       {activeTicket.type.includes(" - ") ? activeTicket.type.split(" - ")[1] : activeTicket.type}
@@ -549,22 +549,22 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                                     (evento.salesEndAt && new Date(evento.salesEndAt) <= new Date()) ||
                                     typeof onNavigate.onAddToCart !== "function"
                                   }
-                                  className={`w-full md:w-auto h-14 px-8 text-lg font-bold shadow-lg transition-all ${
+                                  className={`inline-flex w-full md:w-auto md:min-w-[220px] min-h-14 h-auto items-center justify-center shrink-0 whitespace-nowrap px-6 md:px-8 text-base md:text-lg font-bold leading-none shadow-lg transition-all ${
                                     isSoldOut || 
                                     (evento.salesStartAt && new Date(evento.salesStartAt) > new Date()) ||
                                     (evento.salesEndAt && new Date(evento.salesEndAt) <= new Date())
-                                      ? "bg-zinc-400 dark:bg-zinc-600 cursor-not-allowed opacity-50" 
+                                      ? "bg-none bg-zinc-400 dark:bg-zinc-600 cursor-not-allowed opacity-50 hover:scale-100" 
                                       : "bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 hover:scale-105"
                                   }`}
                                 >
                                   {isSoldOut ? "Esgotado" : 
                                    (evento.salesEndAt && new Date(evento.salesEndAt) <= new Date()) ? "Encerrado" :
                                    (evento.salesStartAt && new Date(evento.salesStartAt) > new Date()) ? (
-                                    <span className="flex items-center gap-2">
+                                    <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
                                       Vendas em Breve <Clock size={20} />
                                     </span>
                                   ) : (
-                                    <span className="flex items-center gap-2">
+                                    <span className="inline-flex items-center justify-center gap-2 whitespace-nowrap">
                                       Garantir Vaga <Ticket size={20} />
                                     </span>
                                   )}
