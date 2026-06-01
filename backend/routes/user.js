@@ -40,6 +40,99 @@ router.post('/avatar', verifyFirebaseToken, upload.single('avatar'), (req, res) 
   res.json({ url: fileUrl });
 });
 
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Apenas imagens sao permitidas'));
+    cb(null, true);
+  },
+});
+
+const ADMIN_EMAILS = [
+  process.env.ADMIN_EMAIL,
+  process.env.ADMIN_EMAIL_2,
+  'itacars237@admin.com',
+  'aryelgamerbrs2@gmail.com',
+].filter(Boolean).map((email) => String(email).trim().toLowerCase());
+
+const ADMIN_UIDS = [
+  process.env.ADMIN_UID,
+  'EhJOQzxkHOUjRTbmdNDDIqe7XEy2',
+].filter(Boolean);
+
+function isAdminUser(user) {
+  const email = String(user?.email || '').trim().toLowerCase();
+  return user?.admin === true || ADMIN_EMAILS.includes(email) || ADMIN_UIDS.includes(user?.uid);
+}
+
+function sanitizeSegment(segment) {
+  return String(segment || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+}
+
+function resolveUploadDirectory(uploadPath, user) {
+  const rawSegments = String(uploadPath || 'uploads')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean);
+
+  if (rawSegments[0] === 'users' && rawSegments[1] === user.uid && rawSegments[2] === 'cars') {
+    return path.join('users', sanitizeSegment(user.uid), 'cars');
+  }
+
+  const adminFolders = new Set(['eventos', 'excursions', 'uploads', 'blog', 'sponsors', 'parceiros']);
+  const targetFolder = sanitizeSegment(rawSegments[0] || 'uploads');
+  if (adminFolders.has(targetFolder) && isAdminUser(user)) {
+    return targetFolder;
+  }
+
+  const err = new Error('Permissao negada para enviar imagem neste destino.');
+  err.statusCode = 403;
+  throw err;
+}
+
+async function saveUploadedImage(req, uploadPath) {
+  if (!req.file) {
+    const err = new Error('Nenhum arquivo enviado.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const uploadDir = resolveUploadDirectory(uploadPath, req.user);
+  const destination = path.resolve(UPLOAD_DIR, uploadDir);
+  if (!destination.startsWith(path.resolve(UPLOAD_DIR))) {
+    const err = new Error('Destino de upload invalido.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await fs.promises.mkdir(destination, { recursive: true });
+
+  const extFromMime = req.file.mimetype === 'image/webp'
+    ? '.webp'
+    : (path.extname(req.file.originalname || '') || '.img').toLowerCase();
+  const baseName = path.basename(req.file.originalname || 'imagem', path.extname(req.file.originalname || ''))
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 80) || 'imagem';
+  const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}-${baseName}${extFromMime}`;
+  const absolutePath = path.join(destination, fileName);
+
+  await fs.promises.writeFile(absolutePath, req.file.buffer);
+
+  const relativeUrl = `/uploads/${uploadDir.replace(/\\/g, '/')}/${encodeURIComponent(fileName)}`;
+  const baseUrl = (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  return `${baseUrl}${relativeUrl}`;
+}
+
+router.post('/upload-image', verifyFirebaseToken, imageUpload.single('image'), async (req, res) => {
+  try {
+    const fileUrl = await saveUploadedImage(req, req.body.uploadPath || 'uploads');
+    res.json({ url: fileUrl });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message || 'Erro ao enviar imagem.' });
+  }
+});
+
 const admin = require('../config/firebaseAdmin');
 
 async function getOrderDocsByBuyerEmail(db, email) {

@@ -26,6 +26,8 @@ const allowedOrigins = [
   'https://www.itajobicarsclub.com.br',
   'https://api.itajobicarsclub.com.br',
   'http://localhost:5173',
+  'http://localhost:4176',
+  'http://127.0.0.1:4176',
   'http://localhost:3001',
 ];
 
@@ -70,7 +72,10 @@ app.get('/', (req, res) => {
 
 app.use('/api/payment', paymentRoutes);
 app.use('/api/import-eventos', importRoutes);
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  immutable: true,
+  maxAge: '365d',
+}));
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 

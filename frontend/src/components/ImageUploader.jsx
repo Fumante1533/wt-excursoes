@@ -1,24 +1,21 @@
 import React, { useState, useRef } from "react";
 import { Upload } from "lucide-react";
-import { app, auth } from "../firebaseConfig";
+import { auth } from "../firebaseConfig";
 import { Input, Button, Spinner } from "./AppPrimitives";
 import { toast } from "react-hot-toast";
 
 const getUploadErrorMessage = (error) => {
-  if (error?.code === "storage/unauthorized") {
-    return "Sem permissao para enviar imagem. Entre novamente e tente de novo.";
+  if (error?.code === "auth/unauthenticated") {
+    return "Entre novamente para enviar a imagem.";
   }
-  if (error?.code === "storage/canceled") {
-    return "Upload cancelado.";
-  }
-  if (error?.code === "storage/retry-limit-exceeded") {
-    return "Conexao instavel. Tente enviar novamente.";
-  }
-  if (!app) {
-    return "Firebase Storage nao esta configurado neste ambiente.";
+  if (error?.message) {
+    return error.message;
   }
   return "Falha ao fazer upload da imagem.";
 };
+
+const getBackendUrl = () =>
+  (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
 
 export const ImageUploader = ({ 
   value, 
@@ -96,29 +93,30 @@ export const ImageUploader = ({
     const loadingToast = toast.loading("Otimizando e enviando imagem...");
 
     try {
-      if (!app) {
-        throw new Error("Firebase app ausente.");
-      }
       if (!auth?.currentUser) {
         const error = new Error("Usuario nao autenticado.");
-        error.code = "storage/unauthorized";
+        error.code = "auth/unauthenticated";
         throw error;
       }
 
-      await auth.currentUser.getIdToken(true);
-      const { getStorage, ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-      const storage = getStorage(app);
       const optimizedFile = await compressImageToWebP(file);
-      const filename = `${uploadPath}/${Date.now()}_${optimizedFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-      const storageRef = ref(storage, filename);
-      
-      const snapshot = await uploadBytes(storageRef, optimizedFile, {
-        contentType: optimizedFile.type || "image/webp",
-        cacheControl: "public,max-age=31536000,immutable",
+      const token = await auth.currentUser.getIdToken(true);
+      const formData = new FormData();
+      formData.append("image", optimizedFile);
+      formData.append("uploadPath", uploadPath);
+
+      const response = await fetch(`${getBackendUrl()}/api/user/upload-image`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || "Falha ao fazer upload da imagem.");
+      }
       
-      onChange(downloadURL);
+      onChange(data.url);
       toast.success("Imagem enviada com sucesso!", { id: loadingToast });
     } catch (error) {
       console.error("Erro ao fazer upload da imagem:", error);
