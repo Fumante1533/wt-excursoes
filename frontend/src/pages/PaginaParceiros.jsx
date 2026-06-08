@@ -4,6 +4,7 @@ import { Building2, Phone, Instagram, ExternalLink } from "lucide-react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { PageWrapper } from "../components/AppPrimitives";
 import { db } from "../firebaseConfig";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 const categoryOrder = ["Patrocinador Master", "Patrocinador", "Apoiador", "Parceiro"];
 const categoryStyle = {
@@ -103,7 +104,7 @@ export default function PaginaParceiros() {
                         }`}>
                           {s.logoUrl ? (
                             <img
-                              src={s.logoUrl}
+                              src={withUploadCacheBust(s.logoUrl)}
                               alt={s.name}
                               loading="lazy"
                               decoding="async"

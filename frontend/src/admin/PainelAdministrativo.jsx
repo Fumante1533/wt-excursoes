@@ -35,6 +35,7 @@ import { Button } from "../components/AppPrimitives";
 import CaixaDialogo from "../components/CaixaDialogo";
 import FormularioEvento from "./FormularioEvento";
 import { formatValidationDate, getTicketQrValue } from "../utils/ticket";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 function TabelaEventoAdmin({ eventos, onEdit, onDelete }) {
   return (
@@ -55,7 +56,7 @@ function TabelaEventoAdmin({ eventos, onEdit, onDelete }) {
             {eventos.map((ex) => (
               <tr key={ex.id} className="border-b border-zinc-700 last:border-b-0 hover:bg-zinc-700/50">
                 <td className="p-4 font-semibold flex items-center">
-                  <img src={ex.image} alt={ex.name} className="w-12 h-12 object-cover rounded-md mr-4" />
+                  <img src={withUploadCacheBust(ex.image)} alt={ex.name} className="w-12 h-12 object-cover rounded-md mr-4" />
                   <span className="text-white">{ex.name}</span>
                 </td>
                 <td className="p-4">{ex.location}</td>

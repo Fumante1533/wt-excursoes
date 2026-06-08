@@ -9,6 +9,7 @@ import { auth } from "../firebaseConfig";
 import { logActivity } from "../utils/ActivityLogger";
 import { Button } from "../components/AppPrimitives";
 import { ImageUploader } from "../components/ImageUploader";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 export default function SponsorManagement({ db }) {
   const [sponsors, setSponsors] = useState([]);
@@ -182,7 +183,7 @@ export default function SponsorManagement({ db }) {
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   {s.logoUrl ? (
-                    <img src={s.logoUrl} alt={s.name} className="w-12 h-12 object-contain rounded-lg bg-white p-1" />
+                    <img src={withUploadCacheBust(s.logoUrl)} alt={s.name} className="w-12 h-12 object-contain rounded-lg bg-white p-1" />
                   ) : (
                     <div className="w-12 h-12 rounded-lg bg-zinc-700 flex items-center justify-center">
                       <Building2 size={22} className="text-zinc-400" />

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { collection, doc, getDoc, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import { Card, Spinner, PageWrapper } from "../components/AppPrimitives";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 export default function PaginaPerfilPublico({ userId, onNavigate }) {
   const [profile, setProfile] = useState(null);
@@ -82,7 +83,7 @@ export default function PaginaPerfilPublico({ userId, onNavigate }) {
                 {cars.map((car) => (
                   <div key={car.id} className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-4">
                     <img
-                      src={car.photoURL || "https://via.placeholder.com/400x300?text=Sem+Foto"}
+                      src={withUploadCacheBust(car.photoURL) || "https://via.placeholder.com/400x300?text=Sem+Foto"}
                       alt={`${car.make} ${car.model}`}
                       loading="lazy"
                       decoding="async"

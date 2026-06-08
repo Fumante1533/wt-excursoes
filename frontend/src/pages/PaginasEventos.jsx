@@ -19,6 +19,7 @@ import ReviewSection from "../components/ReviewSection";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
 import { CartaoEvento, EsqueletoCartaoEvento } from "../components/CartaoEvento";
 import { callGeminiAPI } from "../services/geminiMockService";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 export function PaginaListaEventos({ onNavigate, eventos, user, db }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -231,7 +232,7 @@ function ModalGaleria({ isOpen, onClose, imageUrl }) {
           className="relative max-w-4xl max-h-[90vh] w-full p-4"
           onClick={(e) => e.stopPropagation()}
         >
-          <img src={imageUrl} alt="Visualização da Galeria" decoding="async" className="w-full h-full object-contain rounded-lg" />
+          <img src={withUploadCacheBust(imageUrl)} alt="Visualização da Galeria" decoding="async" className="w-full h-full object-contain rounded-lg" />
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 bg-black/50 rounded-full text-white hover:bg-black/80 transition-colors"
@@ -355,7 +356,7 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      src={activeImage}
+                      src={withUploadCacheBust(activeImage)}
                       alt={evento.name}
                       fetchPriority="high"
                       decoding="async"
@@ -367,7 +368,7 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                   {evento.images?.map((img, i) => (
                     <img
                       key={i}
-                      src={img}
+                      src={withUploadCacheBust(img)}
                       onClick={() => setActiveImage(img)}
                       loading="lazy"
                       decoding="async"
@@ -644,7 +645,7 @@ export function PaginaDetalheEvento({ onNavigate, evento, user, db }) {
                         whileHover={{ scale: 1.05 }}
                       >
                         <img
-                          src={imgUrl}
+                          src={withUploadCacheBust(imgUrl)}
                           alt={`Foto ${index + 1} do evento ${evento.name}`}
                           loading="lazy"
                           decoding="async"

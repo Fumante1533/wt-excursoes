@@ -4,6 +4,7 @@ import { Sparkles, MinusCircle, Trash2 } from "lucide-react";
 import { Button, Input, Spinner } from "../components/AppPrimitives";
 import { ImageUploader } from "../components/ImageUploader";
 import { callGeminiAPI } from "../services/geminiMockService";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 export default function FormularioEvento({ onSave, initialData, onCancel }) {
   const [name, setName] = useState(initialData?.name || "");
@@ -189,7 +190,7 @@ export default function FormularioEvento({ onSave, initialData, onCancel }) {
         {image && (
           <div className="space-y-2">
             <img
-              src={image}
+              src={withUploadCacheBust(image)}
               alt="Prévia do evento"
               className="w-full h-48 object-cover rounded-md"
             />

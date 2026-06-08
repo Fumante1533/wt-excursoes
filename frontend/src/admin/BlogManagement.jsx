@@ -4,6 +4,7 @@ import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimest
 import { auth } from '../firebaseConfig';
 import { logActivity } from '../utils/ActivityLogger';
 import { ImageUploader } from '../components/ImageUploader';
+import { withUploadCacheBust } from '../utils/imageUrl';
 
 const BlogManagement = ({ db }) => {
     const [posts, setPosts] = useState([]);
@@ -110,7 +111,7 @@ const BlogManagement = ({ db }) => {
                     posts.map(post => (
                         <div key={post.id} className="bg-zinc-800 p-4 rounded-lg flex items-center justify-between border border-zinc-700/50 hover:border-zinc-600 transition-colors">
                             <div className="flex items-center gap-4">
-                                {post.imageUrl && <img src={post.imageUrl} className="w-16 h-16 object-cover rounded" alt="" />}
+                                {post.imageUrl && <img src={withUploadCacheBust(post.imageUrl)} className="w-16 h-16 object-cover rounded" alt="" />}
                                 <div>
                                     <p className="font-bold text-white">{post.title}</p>
                                     <p className="text-sm text-zinc-400">por {post.author}</p>

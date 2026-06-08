@@ -4,6 +4,7 @@ import { collection, getDocs, query, collectionGroup } from "firebase/firestore"
 import { Trophy, Medal, Award, Star, Ticket, TrendingUp } from "lucide-react";
 import { PageWrapper } from "../components/AppPrimitives";
 import { db } from "../firebaseConfig";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 const MEDALS = [
   { icon: Trophy, color: "text-yellow-400", bg: "bg-yellow-400/10 border-yellow-500/30" },
@@ -133,7 +134,7 @@ export default function PaginaRanking({ onNavigate }) {
                         : "bg-gradient-to-br from-violet-600 to-purple-500 text-white"
                     }`}>
                       {member.photoURL ? (
-                        <img src={member.photoURL} alt={member.displayName} loading="lazy" decoding="async" className="w-full h-full rounded-full object-cover" />
+                        <img src={withUploadCacheBust(member.photoURL)} alt={member.displayName} loading="lazy" decoding="async" className="w-full h-full rounded-full object-cover" />
                       ) : (
                         member.displayName.charAt(0).toUpperCase()
                       )}

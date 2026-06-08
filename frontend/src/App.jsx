@@ -26,6 +26,7 @@ import CarrinhoLateral from "./components/CarrinhoLateral";
 import { initialEvents } from "./data/initialEvents";
 import { initialBlogPosts } from "./data/initialBlogPosts";
 import { initialFaqs } from "./data/initialFaqs";
+import { withUploadCacheBust } from "./utils/imageUrl";
 
 const lazyNamed = (loader, exportName) =>
   React.lazy(() => loader().then((module) => ({ default: module[exportName] })));
@@ -505,7 +506,7 @@ export default function App() {
     setMetaTag('meta[property="og:description"]', "content", description);
     setMetaTag('meta[property="og:url"]', "content", window.location.href);
     if (currentEvent?.image || currentPost?.imageUrl) {
-      setMetaTag('meta[property="og:image"]', "content", currentEvent?.image || currentPost?.imageUrl);
+      setMetaTag('meta[property="og:image"]', "content", withUploadCacheBust(currentEvent?.image || currentPost?.imageUrl));
     }
   }, [page, pageData, eventos, blogPosts]);
 

@@ -13,6 +13,7 @@ import { collectionGroup, limit, getDocs, query, orderBy } from "firebase/firest
 import { Button, Spinner, PageWrapper, Card } from "../components/AppPrimitives";
 import { CartaoEvento, EsqueletoCartaoEvento } from "../components/CartaoEvento";
 import CountdownProximaExcursao from "../components/CountdownProximaExcursao";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 export default function PaginaInicial({ onNavigate, eventos, user, db }) {
   const upcomingEvents = eventos
@@ -131,7 +132,7 @@ export default function PaginaInicial({ onNavigate, eventos, user, db }) {
             </p>
             <Card className="grid md:grid-cols-2 gap-0 overflow-hidden border-yellow-500/20">
               <img
-                src={nextEvent.image}
+                src={withUploadCacheBust(nextEvent.image)}
                 alt={nextEvent.name}
                 loading="lazy"
                 decoding="async"

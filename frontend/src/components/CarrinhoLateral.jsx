@@ -2,6 +2,7 @@ import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, ShoppingBag, MinusCircle, PlusCircle, Trash2 } from "lucide-react";
 import { Button } from "./AppPrimitives";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 export default function CarrinhoLateral({ isOpen, onClose, cart, onUpdateQuantity, onRemove, onNavigate }) {
   const total = cart.reduce((sum, item) => sum + item.ticket.price * item.quantity, 0);
@@ -41,7 +42,7 @@ export default function CarrinhoLateral({ isOpen, onClose, cart, onUpdateQuantit
               <div className="flex-grow overflow-y-auto p-6 space-y-4">
                 {cart.map((item) => (
                   <div key={item.id} className="flex gap-4">
-                    <img src={item.evento.image} alt={item.evento.name} loading="lazy" decoding="async" className="w-24 h-24 object-cover rounded-lg" />
+                    <img src={withUploadCacheBust(item.evento.image)} alt={item.evento.name} loading="lazy" decoding="async" className="w-24 h-24 object-cover rounded-lg" />
                     <div className="flex-grow">
                       <p className="font-bold">{item.evento.name}</p>
                       <p className="text-sm text-zinc-500">{item.ticket.type}</p>

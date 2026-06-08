@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { MapPin, Calendar, Clock } from "lucide-react";
 import WishlistButton from "./WishlistButton";
 import { Card, Button } from "./AppPrimitives";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 export const CartaoEvento = ({ event, onNavigate, index = 0, user, db }) => {
   const tagColors = {
@@ -21,7 +22,7 @@ export const CartaoEvento = ({ event, onNavigate, index = 0, user, db }) => {
       <Card className="flex flex-col group h-full hover:shadow-2xl dark:hover:shadow-yellow-500/10 hover:-translate-y-2 transition-transform duration-300">
         <div className="overflow-hidden relative">
           <img
-            src={event.image}
+            src={withUploadCacheBust(event.image)}
             alt={event.name}
             loading="lazy"
             decoding="async"

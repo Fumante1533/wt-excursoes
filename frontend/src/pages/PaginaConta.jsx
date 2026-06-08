@@ -19,6 +19,7 @@ import { CartaoEvento } from "../components/CartaoEvento";
 import CaixaDialogo from "../components/CaixaDialogo";
 import { ImageUploader } from "../components/ImageUploader";
 import { getTicketQrValue } from "../utils/ticket";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 function PerfilUsuario({ user, db: firestore }) {
   const [profile, setProfile] = useState(null);
@@ -323,7 +324,7 @@ function GerenciamentoCarrosUsuario({ user, db: firestore }) {
           {cars.map((car) => (
             <Card key={car.id} className="p-4 flex flex-col">
               <img
-                src={car.photoURL || "https://via.placeholder.com/400x300?text=Sem+Foto"}
+                src={withUploadCacheBust(car.photoURL) || "https://via.placeholder.com/400x300?text=Sem+Foto"}
                 alt={`${car.make} ${car.model}`}
                 loading="lazy"
                 decoding="async"
@@ -462,7 +463,7 @@ function ComprasUsuario({ user, eventos, onNavigate, db: firestore }) {
         return (
           <Card key={order.id} id={`ticket-${order.id}`} className="p-6 flex flex-col md:flex-row items-start md:items-center gap-6 relative">
             <img
-              src={eventoDetails?.image}
+              src={withUploadCacheBust(eventoDetails?.image)}
               alt={eventName}
               loading="lazy"
               decoding="async"

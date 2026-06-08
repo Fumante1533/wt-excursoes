@@ -3,6 +3,7 @@ import { Facebook, Instagram, Phone, Building2 } from "lucide-react";
 import { doc, serverTimestamp, setDoc, collection, onSnapshot } from "firebase/firestore";
 import { toast } from "react-hot-toast";
 import { Button, Spinner } from "./AppPrimitives";
+import { withUploadCacheBust } from "../utils/imageUrl";
 
 export default function AppFooter({ onNavigate, db }) {
   const [newsletterEmail, setNewsletterEmail] = useState("");
@@ -87,7 +88,7 @@ export default function AppFooter({ onNavigate, db }) {
                   <li key={s.id} className="flex items-center gap-3">
                     {s.logoUrl ? (
                       <img
-                        src={s.logoUrl}
+                        src={withUploadCacheBust(s.logoUrl)}
                         alt={`Logo ${s.name}`}
                         loading="lazy"
                         decoding="async"
