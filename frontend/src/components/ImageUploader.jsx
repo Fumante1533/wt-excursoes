@@ -17,6 +17,40 @@ const getUploadErrorMessage = (error) => {
 const getBackendUrl = () =>
   (import.meta.env.VITE_BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
 
+const uploadImage = async ({ backendUrl, token, file, uploadPath }) => {
+  const formData = new FormData();
+  formData.append("image", file);
+  formData.append("uploadPath", uploadPath);
+
+  const response = await fetch(`${backendUrl}/api/user/upload-image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (response.status !== 404) {
+    return { response, data };
+  }
+
+  const fallbackData = new FormData();
+  fallbackData.append("avatar", file);
+
+  const fallbackResponse = await fetch(`${backendUrl}/api/user/avatar`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: fallbackData,
+  });
+  const fallbackJson = await fallbackResponse.json().catch(() => ({}));
+
+  return {
+    response: fallbackResponse,
+    data: fallbackJson.url?.startsWith("/")
+      ? { ...fallbackJson, url: `${backendUrl}${fallbackJson.url}` }
+      : fallbackJson,
+  };
+};
+
 export const ImageUploader = ({ 
   value, 
   onChange, 
@@ -101,16 +135,12 @@ export const ImageUploader = ({
 
       const optimizedFile = await compressImageToWebP(file);
       const token = await auth.currentUser.getIdToken(true);
-      const formData = new FormData();
-      formData.append("image", optimizedFile);
-      formData.append("uploadPath", uploadPath);
-
-      const response = await fetch(`${getBackendUrl()}/api/user/upload-image`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+      const { response, data } = await uploadImage({
+        backendUrl: getBackendUrl(),
+        token,
+        file: optimizedFile,
+        uploadPath,
       });
-      const data = await response.json().catch(() => ({}));
 
       if (!response.ok || !data.url) {
         throw new Error(data.error || "Falha ao fazer upload da imagem.");
