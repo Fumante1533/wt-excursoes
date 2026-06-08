@@ -55,7 +55,7 @@ export default function CountdownProximaExcursao({ excursion, onNavigate }) {
           transition={{ duration: 0.6 }}
         >
           <div className="inline-flex items-center gap-2 bg-violet-500/20 border border-violet-500/40 rounded-full px-4 py-1.5 text-violet-400 text-sm font-semibold mb-6">
-            ⏱️ Conta Regressiva
+            ⏱️ CONTAGEM REGRESSIVA
           </div>
           <h2 className="text-3xl md:text-4xl font-bold mb-2">
             Não perca o <span className="text-violet-400">próximo encontro!</span>
