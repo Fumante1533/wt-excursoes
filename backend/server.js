@@ -75,6 +75,10 @@ app.use('/api/import-eventos', importRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   immutable: true,
   maxAge: '365d',
+  setHeaders: (res) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  },
 }));
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
