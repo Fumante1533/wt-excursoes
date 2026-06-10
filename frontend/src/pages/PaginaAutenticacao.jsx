@@ -184,7 +184,7 @@ export default function PaginaAutenticacao({ onLoginSuccess }) {
                   <Input
                     name="phone"
                     type="tel"
-                    placeholder="Telefone (ex: +5511999999999)"
+                    placeholder="Telefone (ex: +5517996133907)"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     icon={Phone}

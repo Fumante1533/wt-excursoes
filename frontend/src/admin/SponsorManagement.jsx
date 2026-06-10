@@ -148,7 +148,7 @@ export default function SponsorManagement({ db }) {
             </div>
             <div>
               <label className="block text-sm text-zinc-400 mb-1">Telefone / WhatsApp</label>
-              <input className={inputClass} placeholder="(17) 99999-9999" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <input className={inputClass} placeholder="(17) 99613-3907" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </div>
             <div>
               <label className="block text-sm text-zinc-400 mb-1">Instagram</label>

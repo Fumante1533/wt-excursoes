@@ -180,7 +180,7 @@ export default function PaginaParceiros() {
               Entre em contato conosco e faça parte dos eventos que movem a comunidade automotiva da região.
             </p>
             <a
-              href="https://wa.me/5517999999999?text=Olá!%20Tenho%20interesse%20em%20ser%20parceiro%20do%20Itajobi%20Cars%20Club."
+              href="https://wa.me/5517996133907?text=Olá!%20Tenho%20interesse%20em%20ser%20parceiro%20do%20Itajobi%20Cars%20Club."
               target="_blank"
               rel="noreferrer"
               className="inline-block bg-yellow-500 hover:bg-yellow-400 text-zinc-900 font-bold px-8 py-3 rounded-xl transition-colors"

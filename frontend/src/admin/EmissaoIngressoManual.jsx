@@ -238,7 +238,7 @@ export default function EmissaoIngressoManual({ eventos, onIssued }) {
               </div>
               <div>
                 <label className={labelClass}>Telefone / WhatsApp</label>
-                <input className={inputClass} placeholder="(17) 99999-9999" value={form.buyerPhone} onChange={(e) => set("buyerPhone", e.target.value)} />
+                <input className={inputClass} placeholder="(17) 99613-3907" value={form.buyerPhone} onChange={(e) => set("buyerPhone", e.target.value)} />
               </div>
               <div>
                 <label className={labelClass}>CPF</label>
