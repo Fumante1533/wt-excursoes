@@ -212,8 +212,11 @@ exports.createPreference = async (req, res) => {
     }
 
     const preference = new Preference(client);
+    const backendBaseUrl = (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`).trim().replace(/\/+$/, '');
+    const notificationUrl = `${backendBaseUrl}/api/payment/webhook`;
 
     const body = {
+      notification_url: notificationUrl,
       items: [
         {
           id: String(targetExcursion.id),
@@ -261,6 +264,7 @@ exports.createPreference = async (req, res) => {
         transaction_amount: amountToCharge,
         description: `${excursionData.name} (${ticket.type})`,
         payment_method_id: 'pix',
+        notification_url: notificationUrl,
         payer: {
           email: payerEmail,
           first_name: firstName,
