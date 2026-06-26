@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { Car } from "lucide-react";
+import { Car, CreditCard, QrCode } from "lucide-react";
 import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 import { db, auth } from "../firebaseConfig";
 import { Card, Button, PageWrapper, Input, Spinner } from "../components/AppPrimitives";
@@ -29,6 +29,7 @@ export default function PaginaCheckout({ cart, user }) {
   const [copied, setCopied] = useState(false);
   const [garageCars, setGarageCars] = useState([]);
   const [selectedGarageCarId, setSelectedGarageCarId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("mercadopago");
 
   useEffect(() => {
     const mpPublicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
@@ -113,6 +114,14 @@ export default function PaginaCheckout({ cart, user }) {
         carColor: car.color || "",
       }));
     }
+  };
+
+  const handlePaymentMethodChange = (method) => {
+    setPaymentMethod(method);
+    setPreferenceId(null);
+    setPixData(null);
+    setCopied(false);
+    setError("");
   };
 
   const totalTickets = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -327,7 +336,7 @@ export default function PaginaCheckout({ cart, user }) {
           ...p,
           carPlate: formatCarPlate(p.carPlate)
         })),
-        paymentMethod: "pix",
+        paymentMethod,
       };
 
       console.log("[CHECKOUT DEBUG] Enviando payload:", payload);
@@ -581,6 +590,48 @@ export default function PaginaCheckout({ cart, user }) {
 
           {error && <p className="bg-red-500/10 text-red-500 p-3 rounded-lg text-center text-sm my-4">{error}</p>}
 
+          {!pixData && !preferenceId && (
+            <div className="mt-8 pt-6 border-t dark:border-zinc-700">
+              <h3 className="text-xl font-bold mb-4 text-zinc-800 dark:text-white">Forma de Pagamento</h3>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handlePaymentMethodChange("mercadopago")}
+                  className={`text-left rounded-xl border-2 p-4 transition-all ${
+                    paymentMethod === "mercadopago"
+                      ? "border-yellow-400 bg-yellow-500/10 shadow-lg shadow-yellow-500/10"
+                      : "border-zinc-200 dark:border-zinc-700 bg-white/70 dark:bg-zinc-800/70 hover:border-yellow-500/60"
+                  }`}
+                >
+                  <span className="flex items-center gap-3 font-bold text-zinc-900 dark:text-white">
+                    <CreditCard size={22} className="text-yellow-500" />
+                    Cartão e outras opções
+                  </span>
+                  <span className="block text-sm text-zinc-500 dark:text-zinc-400 mt-2">
+                    Crédito, débito, boleto e carteira Mercado Pago.
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePaymentMethodChange("pix")}
+                  className={`text-left rounded-xl border-2 p-4 transition-all ${
+                    paymentMethod === "pix"
+                      ? "border-yellow-400 bg-yellow-500/10 shadow-lg shadow-yellow-500/10"
+                      : "border-zinc-200 dark:border-zinc-700 bg-white/70 dark:bg-zinc-800/70 hover:border-yellow-500/60"
+                  }`}
+                >
+                  <span className="flex items-center gap-3 font-bold text-zinc-900 dark:text-white">
+                    <QrCode size={22} className="text-yellow-500" />
+                    Pix
+                  </span>
+                  <span className="block text-sm text-zinc-500 dark:text-zinc-400 mt-2">
+                    QR Code e copia e cola gerados na hora.
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {pixData ? (
             <div className="mt-8 p-6 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl flex flex-col items-center">
               <div className="flex items-center gap-2 mb-4">
@@ -636,8 +687,10 @@ export default function PaginaCheckout({ cart, user }) {
                 <>
                   <Spinner /> Preparando pagamento...
                 </>
+              ) : paymentMethod === "pix" ? (
+                `Gerar Pix de R$ ${totalPrice.toFixed(2)}`
               ) : (
-                `Pagar R$ ${totalPrice.toFixed(2)}`
+                `Continuar para pagamento de R$ ${totalPrice.toFixed(2)}`
               )}
             </Button>
           ) : (
