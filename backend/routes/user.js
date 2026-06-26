@@ -213,9 +213,29 @@ router.post('/link-guest-orders', verifyFirebaseToken, async (req, res) => {
 });
 
 const nodemailer = require('nodemailer');
+const QRCode = require('qrcode');
 const sendTicketEmail = async (email, name, eventName, ticketCode, ticketPayload) => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
   const ticketLink = String(ticketPayload || '').startsWith('http') ? ticketPayload : '';
+  const attachments = [];
+  let qrImageHtml = '';
+  if (ticketPayload) {
+    try {
+      const qrBuffer = await QRCode.toBuffer(String(ticketPayload), {
+        errorCorrectionLevel: 'M',
+        margin: 2,
+        width: 240,
+      });
+      attachments.push({
+        filename: 'ingresso-qr-code.png',
+        content: qrBuffer,
+        cid: 'ticket-qr-code',
+      });
+      qrImageHtml = '<p><img src="cid:ticket-qr-code" alt="QR Code do ingresso" style="width: 220px; height: 220px; display: block; margin: 16px auto; border: 8px solid #fff; border-radius: 12px;" /></p>';
+    } catch (err) {
+      console.error('Erro ao gerar QR Code do email:', err);
+    }
+  }
   try {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -233,11 +253,13 @@ const sendTicketEmail = async (email, name, eventName, ticketCode, ticketPayload
             <p style="font-size: 18px; margin: 0;">Código do Ingresso:</p>
             <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">${ticketCode}</p>
           </div>
+          ${qrImageHtml}
           ${ticketLink ? `<p><a href="${ticketLink}" style="display: inline-block; background: #eab308; color: #111; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: bold;">Abrir ingresso com QR Code</a></p>` : ''}
           <p>Apresente este código na entrada do evento.</p>
           <p>Nos vemos lá!</p>
         </div>
-      `
+      `,
+      attachments
     });
   } catch (err) {
     console.error('Erro ao reenviar email:', err);

@@ -120,9 +120,9 @@ export default function PaginaStatusPagamento({ onNavigate, status, user }) {
           {/* Descrição */}
           <p className="text-zinc-500 dark:text-zinc-400 mb-8">
             {isSuccess
-              ? "Seu pagamento foi aprovado. Enviamos os detalhes para o seu e-mail."
+              ? "Seu pagamento foi aprovado. O ingresso com QR Code fica disponível aqui e também será enviado para o e-mail informado na compra."
               : isPending
-              ? "Seu pagamento está sendo processado. Assim que for confirmado, você receberá o ingresso por e-mail."
+              ? "Seu pagamento está sendo processado. Assim que for confirmado, o ingresso ficará disponível no site e será enviado por e-mail."
               : "Houve um problema ao processar seu pagamento. Tente novamente ou entre em contato com o suporte."}
           </p>
 
@@ -177,7 +177,7 @@ export default function PaginaStatusPagamento({ onNavigate, status, user }) {
                         <div className="text-xs text-zinc-400 space-y-1">
                           <p className="font-semibold text-zinc-200">Acelere com a gente!</p>
                           <p>Apresente este QR Code na portaria do evento para validação.</p>
-                          <p className="text-yellow-400/90 font-medium">Salve este ingresso no seu celular.</p>
+                          <p className="text-yellow-400/90 font-medium">Você também pode acessar este ingresso pelo e-mail da compra.</p>
                         </div>
                       </div>
                     )}
@@ -185,7 +185,7 @@ export default function PaginaStatusPagamento({ onNavigate, status, user }) {
 
                   {lastOrder.ticket?.code && (
                     <div className="flex justify-center">
-                      <Button onClick={downloadTicket} variant="outline" size="sm" className="w-full">
+                      <Button onClick={downloadTicket} variant="secondary" size="sm" className="w-full">
                         <Download size={16} className="mr-2 inline" /> Salvar Ingresso no Celular
                       </Button>
                     </div>

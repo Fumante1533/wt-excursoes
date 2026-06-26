@@ -2,9 +2,10 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Toaster } from "react-hot-toast";
 
-export const Card = ({ children, className = "" }) => (
+export const Card = ({ children, className = "", ...rest }) => (
   <motion.div
     className={`bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden transition-colors duration-300 border border-zinc-200/50 dark:border-zinc-800/50 ${className}`}
+    {...rest}
   >
     {children}
   </motion.div>

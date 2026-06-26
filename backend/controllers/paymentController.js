@@ -15,10 +15,35 @@ const {
   validateCouponForPurchase,
 } = require('../lib/paymentHelpers');
 const nodemailer = require('nodemailer');
+const QRCode = require('qrcode');
+
+function isMaskedMercadoPagoValue(value) {
+  const text = String(value || '').replace(/\s+/g, '').trim();
+  return !text || /^X{3,}$/i.test(text);
+}
 
 const sendTicketEmail = exports.sendTicketEmail = async (email, name, eventName, ticketCode, ticketPayload) => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return;
   const ticketLink = String(ticketPayload || '').startsWith('http') ? ticketPayload : '';
+  const attachments = [];
+  let qrImageHtml = '';
+  if (ticketPayload) {
+    try {
+      const qrBuffer = await QRCode.toBuffer(String(ticketPayload), {
+        errorCorrectionLevel: 'M',
+        margin: 2,
+        width: 240,
+      });
+      attachments.push({
+        filename: 'ingresso-qr-code.png',
+        content: qrBuffer,
+        cid: 'ticket-qr-code',
+      });
+      qrImageHtml = '<p><img src="cid:ticket-qr-code" alt="QR Code do ingresso" style="width: 220px; height: 220px; display: block; margin: 16px auto; border: 8px solid #fff; border-radius: 12px;" /></p>';
+    } catch (err) {
+      console.error('Erro ao gerar QR Code do email:', err);
+    }
+  }
   try {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -37,11 +62,13 @@ const sendTicketEmail = exports.sendTicketEmail = async (email, name, eventName,
             <p style="font-size: 18px; margin: 0;">Código do Ingresso:</p>
             <p style="font-size: 24px; font-weight: bold; margin: 10px 0;">${ticketCode}</p>
           </div>
+          ${qrImageHtml}
           ${ticketLink ? `<p><a href="${ticketLink}" style="display: inline-block; background: #eab308; color: #111; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: bold;">Abrir ingresso com QR Code</a></p>` : ''}
           <p>Apresente este código na entrada do evento.</p>
           <p>Nos vemos lá!</p>
         </div>
-      `
+      `,
+      attachments
     });
   } catch (err) {
     console.error('Erro ao enviar email:', err);
@@ -185,7 +212,10 @@ exports.createPreference = async (req, res) => {
     const realPrice = Number(realTicket.price || 0);
 
     const payerEmail = tokenEmail || (buyerInfo && String(buyerInfo.email).trim()) || '';
-    if (!payerEmail) {
+    const buyerEmail = String(payerEmail || '').trim();
+    const buyerName = String((buyerInfo && buyerInfo.fullName) || (req.user && req.user.name) || buyerEmail.split('@')[0] || 'Comprador').trim() || 'Comprador';
+    const buyerCpf = String((buyerInfo && buyerInfo.cpf) || '').replace(/\D/g, '');
+    if (!buyerEmail) {
       return res.status(400).json({ error: 'E-mail do pagador é obrigatório.' });
     }
 
@@ -214,6 +244,20 @@ exports.createPreference = async (req, res) => {
     const preference = new Preference(client);
     const backendBaseUrl = (process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`).trim().replace(/\/+$/, '');
     const notificationUrl = `${backendBaseUrl}/api/payment/webhook`;
+    const baseMetadata = {
+      user_id: uid,
+      is_guest: String(isGuest),
+      evento_id: String(targetExcursion.id),
+      ticket_type: ticket.type,
+      buyer_name: buyerName,
+      buyer_email: buyerEmail,
+      coupon_code: coupon ? coupon.code : '',
+      coupon_doc_id: coupon ? coupon.docId : '',
+      amount_before_discount: String(subtotal),
+      discount_amount: String(discountAmount),
+      car_info: JSON.stringify(carInfo || {}),
+      additional_passengers: additionalPassengers ? JSON.stringify(additionalPassengers).substring(0, 450) : "[]",
+    };
 
     const body = {
       notification_url: notificationUrl,
@@ -229,8 +273,8 @@ exports.createPreference = async (req, res) => {
         },
       ],
       payer: {
-        name: (buyerInfo && buyerInfo.fullName) || (req.user && req.user.name) || 'Comprador',
-        email: payerEmail,
+        name: buyerName,
+        email: buyerEmail,
       },
       back_urls: {
         success: `${(process.env.FRONTEND_URL || 'http://localhost:5173').trim().replace(/\/+$/, '')}/success`,
@@ -238,27 +282,15 @@ exports.createPreference = async (req, res) => {
         pending: `${(process.env.FRONTEND_URL || 'http://localhost:5173').trim().replace(/\/+$/, '')}/pending`,
       },
       auto_return: 'approved',
-      metadata: {
-        user_id: uid,
-        is_guest: String(isGuest),
-        evento_id: String(targetExcursion.id),
-        ticket_type: ticket.type,
-        coupon_code: coupon ? coupon.code : '',
-        coupon_doc_id: coupon ? coupon.docId : '',
-        amount_before_discount: String(subtotal),
-        discount_amount: String(discountAmount),
-        car_info: JSON.stringify(carInfo || {}),
-        additional_passengers: additionalPassengers ? JSON.stringify(additionalPassengers).substring(0, 450) : "[]",
-      },
+      metadata: baseMetadata,
     };
 
     if (paymentMethod === 'pix') {
       const payment = new Payment(client);
       
-      const nameParts = String((buyerInfo && buyerInfo.fullName) || 'Comprador').trim().split(' ');
+      const nameParts = buyerName.split(' ');
       const firstName = nameParts[0];
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Silva';
-      const cleanCpf = String((buyerInfo && buyerInfo.cpf) || '').replace(/\D/g, '');
 
       const paymentBody = {
         transaction_amount: amountToCharge,
@@ -266,26 +298,15 @@ exports.createPreference = async (req, res) => {
         payment_method_id: 'pix',
         notification_url: notificationUrl,
         payer: {
-          email: payerEmail,
+          email: buyerEmail,
           first_name: firstName,
           last_name: lastName,
           identification: {
             type: 'CPF',
-            number: cleanCpf || undefined,
+            number: buyerCpf || undefined,
           },
         },
-        metadata: {
-          user_id: uid,
-          is_guest: String(isGuest),
-          evento_id: String(targetExcursion.id),
-          ticket_type: ticket.type,
-          coupon_code: coupon ? coupon.code : '',
-          coupon_doc_id: coupon ? coupon.docId : '',
-          amount_before_discount: String(subtotal),
-          discount_amount: String(discountAmount),
-          car_info: JSON.stringify(carInfo || {}),
-          additional_passengers: additionalPassengers ? JSON.stringify(additionalPassengers).substring(0, 450) : "[]",
-        },
+        metadata: baseMetadata,
       };
 
       const response = await payment.create({ body: paymentBody });
@@ -302,9 +323,9 @@ exports.createPreference = async (req, res) => {
           couponCode: coupon ? coupon.code : null,
           status: 'Pendente',
           createdAt: new Date().toISOString(),
-          buyerName: payerEmail.split('@')[0],
-          buyerEmail: payerEmail,
-          buyerEmailLower: String(payerEmail || '').trim().toLowerCase(),
+          buyerName,
+          buyerEmail,
+          buyerEmailLower: buyerEmail.toLowerCase(),
           abandonedCartSent: false,
           paymentMethod: 'pix',
           paymentId: response.id,
@@ -336,9 +357,9 @@ exports.createPreference = async (req, res) => {
         couponCode: coupon ? coupon.code : null,
         status: 'Pendente',
         createdAt: new Date().toISOString(),
-        buyerName: payerEmail.split('@')[0],
-        buyerEmail: payerEmail,
-        buyerEmailLower: String(payerEmail || '').trim().toLowerCase(),
+        buyerName,
+        buyerEmail,
+        buyerEmailLower: buyerEmail.toLowerCase(),
         abandonedCartSent: false,
         preferenceId: response.id
       });
@@ -413,6 +434,14 @@ exports.receiveWebhook = async (req, res) => {
       const couponDocId = metadata && metadata.coupon_doc_id;
       const amountBeforeDiscount = roundCurrency(Number((metadata && metadata.amount_before_discount) || orderData.transaction_amount || 0));
       const discountAmount = roundCurrency(Number((metadata && metadata.discount_amount) || 0));
+      const metadataBuyerName = String((metadata && metadata.buyer_name) || '').trim();
+      const metadataBuyerEmail = String((metadata && metadata.buyer_email) || '').trim();
+      const payerFirstName = String(orderData.payer?.first_name || '').trim();
+      const payerLastName = String(orderData.payer?.last_name || '').trim();
+      const payerName = [payerFirstName, payerLastName].filter(Boolean).join(' ').trim();
+      const payerEmail = String(orderData.payer?.email || '').trim();
+      const buyerName = metadataBuyerName || (!isMaskedMercadoPagoValue(payerName) ? payerName : '') || 'Comprador';
+      const buyerEmail = metadataBuyerEmail || (!isMaskedMercadoPagoValue(payerEmail) ? payerEmail : '');
       const totalTicketsBought = 1 + additionalPassengers.length;
       const extraTicketEmails = additionalPassengers.map((passenger, idx) => ({
         passenger,
@@ -459,9 +488,9 @@ exports.receiveWebhook = async (req, res) => {
         couponCode: couponCode || null,
         status: 'Pago',
         purchaseDate: new Date().toISOString(),
-        buyerName: orderData.payer?.first_name || '',
-        buyerEmail: orderData.payer?.email || '',
-        buyerEmailLower: String(orderData.payer?.email || '').trim().toLowerCase(),
+        buyerName,
+        buyerEmail,
+        buyerEmailLower: buyerEmail.toLowerCase(),
         paymentId: orderData.id,
         carInfo,
         ticket: mainTicket,
@@ -499,8 +528,8 @@ exports.receiveWebhook = async (req, res) => {
       if (!processed) return;
 
       // Envia os emails de forma assíncrona
-      if (orderData.payer?.email) {
-        sendTicketEmail(orderData.payer.email, orderData.payer.first_name || 'Comprador', eventoNameStr, mainTicket.code, mainTicket.qrPayload);
+      if (buyerEmail) {
+        sendTicketEmail(buyerEmail, buyerName, eventoNameStr, mainTicket.code, mainTicket.qrPayload);
       }
       if (Array.isArray(extraTicketEmails)) {
         extraTicketEmails.forEach(({ passenger, ticket }) => {
